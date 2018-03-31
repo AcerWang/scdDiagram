@@ -1,4 +1,3 @@
-#import db
 import xml.etree.ElementTree as ET
 import time
 
