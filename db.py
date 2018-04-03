@@ -1,73 +1,25 @@
-import sqlite3
+import pymysql as mysql
 '''
    本模块负责处理数据库操作，
    为数据连接层
 '''
 
-conn = None
-cursor = None
-
-def get_db():
-    """"
-       如果连接存在，直接返回该连接
-       如果连接不存在，创建一个新的连接，并返回该连接
-    """
-    global conn
-    
-    if conn:
-        return conn
-    
+def insert(sql_insert):
     try:
-        conn = sqlite3.connect("SCD.db")
+        conn = mysql.connect(host="localhost",port="3306",user="root",passwd="wxy910101",db="scd")
+        cursor = conn.cursor()
+        """
+        插入数据到数据库中
+        """
+        cunt = cursor.execute(sql_insert)
+        conn.commit()
+        """
+        关闭游标对象和数据库连接对象
+        """
+        cursor.close()
+        conn.close()
+        print("总共插入%d条数据"%cunt)
     except Exception as e:
         print(e)
-    return conn
 
-def close_db():
-    """"
-       如果连接存在，关闭数据库连接
-    """
-    global conn
-    if conn:
-        conn.close()
-
-def get_cursor():
-    """
-       获取游标对象
-    """
-    global cursor
-    if cursor:
-        return cursor
-    cursor = conn.cursor()
-    return cursor
-
-def close_cursor():
-    """
-       关闭游标对象
-    """
-    global cursor
-    if cursor:
-        cursor.close()
-
-def insert(sql_insert):
-    """
-       插入数据到数据库中
-    """
-    global cursor
-    cursor.execute(sql_insert)
-    print(cursor.rowcount)
-
-def init():
-    """
-       初始化数据库连接对象和游标对象
-    """
-    global conn,cursor
-    conn = get_db()
-    cursor = get_cursor()
-
-def final():
-    """
-       关闭游标对象和数据库连接对象
-    """
-    close_cursor()
-    close_db()
+    
