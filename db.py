@@ -6,7 +6,7 @@ import pymysql as mysql
 
 def insert(sql_insert):
     try:
-        conn = mysql.connect(host="localhost",port="3306",user="root",passwd="wxy910101",db="scd")
+        conn = mysql.connect(host="localhost",port=3306,user="root",passwd="passwd",db="scd")
         cursor = conn.cursor()
         """
         插入数据到数据库中
