@@ -4,14 +4,15 @@ import pymysql as mysql
    为数据连接层
 '''
 
-def insert(sql_insert):
+def insert(sql_insert,args):
     try:
-        conn = mysql.connect(host="localhost",port=3306,user="root",passwd="passwd",db="scd")
+        conn = mysql.connect(host="localhost",port=3306,user="root",passwd="wxy19910101",db="scd",charset="utf8")
         cursor = conn.cursor()
+        
         """
         插入数据到数据库中
         """
-        cunt = cursor.execute(sql_insert)
+        cunt = cursor.executemany(sql_insert,args)
         conn.commit()
         """
         关闭游标对象和数据库连接对象
@@ -21,5 +22,3 @@ def insert(sql_insert):
         print("总共插入%d条数据"%cunt)
     except Exception as e:
         print(e)
-
-    

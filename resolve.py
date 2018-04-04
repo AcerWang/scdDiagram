@@ -1,3 +1,4 @@
+#-*- encoding=utf8 -*-
 import db
 import xml.etree.ElementTree as ET
 import time
@@ -10,7 +11,8 @@ root = tree.getroot()
 
 print(root.tag)
 total = 0
-insert_sql = "insert into ied values"
+insert_sql = "insert into ied values(%s,%s,%s,%s,%s)"
+ieds = []
 for item in root.iter('{http://www.iec.ch/61850/2003/SCL}IED'):
     total += 1
     #print(item.find('title').text)
@@ -19,12 +21,10 @@ for item in root.iter('{http://www.iec.ch/61850/2003/SCL}IED'):
     Type = item.get('type')
     manufacturer = item.get('manufacturer')
     version = item.get('configVersion')
-    insert_sql += '(%d,"%s","%s","%s","%s","%s"),'%(1,name,desc,Type,manufacturer,version)
-insert_sql = insert_sql[:-1]+';'
+    ieds.append((name,desc,Type,manufacturer,version))
 
-print(insert_sql[0:100])
-db.insert(insert_sql)
-#print("总共%d条数据！"%total)
+db.insert(insert_sql,ieds)
+print("总共%d条数据！"%total)
 
 end = time.clock()
 
