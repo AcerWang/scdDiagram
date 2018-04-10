@@ -20,7 +20,7 @@ PRAGMA foreign_keys = false;
 -- ----------------------------
 DROP TABLE IF EXISTS "AccessPoint";
 CREATE TABLE "AccessPoint" (
-  "ap_id" INTEGER(10) NOT NULL,
+  "ap_id" INTEGER(10) NOT NULL AUTOINCREMENT,
   "ied_id" integer(10),
   "name" varchar(10),
   "ld_inst" varchar(20),
@@ -176,15 +176,6 @@ CREATE TABLE "ReportControl" (
   "buffered" varchar(10),
   "bufTime" varchar(10),
   "desc" varchar(40)
-);
-
--- ----------------------------
--- Table structure for sqlite_sequence
--- ----------------------------
-DROP TABLE IF EXISTS "sqlite_sequence";
-CREATE TABLE "sqlite_sequence" (
-  "name",
-  "seq"
 );
 
 -- ----------------------------
