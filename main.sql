@@ -1,10 +1,10 @@
 /*
  Navicat Premium Data Transfer
  Source Server         : wxy
- Source Server Type    : SQLite
+ Source Server Type    : MySQL
  Source Server Version : 3021000
  Source Schema         : main
- Target Server Type    : SQLite
+ Target Server Type    : MySQL
  Target Server Version : 3021000
  File Encoding         : 65001
  Date: 10/04/2018 22:03:17
