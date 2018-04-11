@@ -10,7 +10,7 @@
  Target Server Version : 3021000
  File Encoding         : 65001
 
- Date: 11/04/2018 22:20:59
+ Date: 11/04/2018 23:55:42
 */
 
 PRAGMA foreign_keys = false;
@@ -115,6 +115,7 @@ CREATE TABLE "IED" (
 DROP TABLE IF EXISTS "Inputs";
 CREATE TABLE "Inputs" (
   "ext_id" varchar(20) NOT NULL,
+  "ipt_id" varchar(20),
   "ln_id" varchar(20),
   "iedName" varchar(20),
   "prefix" varchar(20),
@@ -182,33 +183,6 @@ CREATE TABLE "LogControl" (
   "reasonCode" varchar(10),
   "desc" varchar(40),
   PRIMARY KEY ("lc_id")
-);
-
--- ----------------------------
--- Table structure for ReportControl
--- ----------------------------
-DROP TABLE IF EXISTS "ReportControl";
-CREATE TABLE "ReportControl" (
-  "rc_id" varchar(20) NOT NULL,
-  "ln_id" varchar(20),
-  "name" varchar(40),
-  "datSet" varchar(40),
-  "intgPd" varchar(10),
-  "tptID" varchar(40),
-  "confRev" varchar(10),
-  "buffered" varchar(10),
-  "bufTime" varchar(10),
-  "desc" varchar(40),
-  PRIMARY KEY ("rc_id")
-);
-
--- ----------------------------
--- Table structure for sqlite_sequence
--- ----------------------------
-DROP TABLE IF EXISTS "sqlite_sequence";
-CREATE TABLE "sqlite_sequence" (
-  "name",
-  "seq"
 );
 
 PRAGMA foreign_keys = true;
