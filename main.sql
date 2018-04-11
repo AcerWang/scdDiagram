@@ -20,8 +20,8 @@ CREATE TABLE `AccessPoint` (
   `ap_id` INTEGER(11) NOT NULL PRIMARY KEY AUTO_INCREMENT,
   `ied_id` integer(11),
   `name` varchar(10),
-  `ld_inst` varchar(20),
-  `ld_desc` varchar(40)
+  `router` varchar(10),
+  `clock` varchar(10)
 );
 
 -- ----------------------------
