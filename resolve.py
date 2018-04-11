@@ -1,5 +1,4 @@
-#-*- encoding=utf8 -*-
-import db
+import util
 import xml.etree.ElementTree as ET
 import time
 
@@ -11,20 +10,27 @@ root = tree.getroot()
 
 print(root.tag)
 total = 0
-insert_sql = "insert into ied values(%s,%s,%s,%s,%s)"
-ieds = []
-for item in root.iter('{http://www.iec.ch/61850/2003/SCL}IED'):
-    total += 1
-    #print(item.find('title').text)
-    name = item.get('name')
-    desc = item.get('desc')
-    Type = item.get('type')
-    manufacturer = item.get('manufacturer')
-    version = item.get('configVersion')
-    ieds.append((name,desc,Type,manufacturer,version))
 
-db.insert(insert_sql,ieds)
-print("总共%d条数据！"%total)
+
+data = util.getTags(root.iter('{http://www.iec.ch/61850/2003/SCL}IED'),'name','desc','type','manufacturer','configVersion')
+
+util.createTable('''
+	DROP TABLE IF EXISTS subNetwork
+''')
+
+util.createTable('''CREATE TABLE subNetwork(
+							id int auto_increment primary key,
+							name varchar(10), 
+							desc varchar(10),
+							type varchar(10), 
+							iedName varchar(20),
+							apName varchar(10),
+							IP varchar(20),
+							IP_SUBNET varchar(20),
+							IP_GATEWAY varchar(20)
+							)''')
+
+util.writeDB('insert into subNetwork(name,desc,type,iedName,apName,IP,IP_SUBNET,IP_GATEWAY) values(?,?,?,?,?)',data)
 
 end = time.clock()
 

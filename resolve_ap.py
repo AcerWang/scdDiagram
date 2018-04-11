@@ -10,10 +10,9 @@ tree = ET.parse('HS220.scd')
 root = tree.getroot()
 
 print(root.tag)
-insert_sql = "insert into accesspoint values(%s,%s,%s,%s,%s)"
+insert_sql = "insert into accesspoint values(?,?,?,?,?)"
 
-ied_num = 0
-total = 0
+total,ied_num = 0,0
 ap_data = []
 for item in root.iter('{http://www.iec.ch/61850/2003/SCL}IED'):
     ied_num += 1
@@ -22,11 +21,13 @@ for item in root.iter('{http://www.iec.ch/61850/2003/SCL}IED'):
         name = ap.get('name')
         inst = ap.get('router')
         desc = ap.get('clock')
-        ap_data.append((total,ied_num,name,inst,desc))
+        ap_data.append(("ap_"+str(total),"ied_"+str(ied_num),name,inst,desc))
 
 db.insert(insert_sql,ap_data)
-#print("总共插入%d条数据！"%total)
+
+print("IED数:%d，AccessPoint数：%d！"%(ied_num,total))
 
 end = time.clock()
 
 print("程序总运行时间：",end-start,"s")
+#---- about 1.32 s----#
