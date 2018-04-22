@@ -24,7 +24,7 @@ def getTransformers():
     for t in trans:
         print(t)
 
-def getBuses():
+def getVolts():
     '''
        获得线路电压等级
     '''
@@ -49,8 +49,26 @@ def getBuses():
     else:
         print(volt)
 
+def getBuses():
+    '''
+       获得母线数量
+    '''
+    p = '\d{3,}'
+    pattn = re.compile(p)
 
+    buses = set()
+
+    sql = 'select name,desc from ied where name like "%CM%" or name like "%PM%"'
+    res = db.select(sql)
+
+    for bus in res:
+        b = pattn.search(bus[0])
+        if b is not None:
+           buses.add(b.group())
+    sorted(buses)
+    print(buses)
 
 if __name__=='__main__':
-    getTransformers()
-    #getBuses()
+    #getTransformers()
+    #getVolts()
+    getBuses()
