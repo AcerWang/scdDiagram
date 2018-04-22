@@ -21,12 +21,11 @@ def getTransformers():
             trans.add(t)
 
     print("主变台数：",len(sorted(trans,reverse=False)))
-    for t in trans:
-        print(t)
+    print(trans)
 
 def getVolts():
     '''
-       获得线路电压等级
+       获得电压等级
     '''
     p = r'([1-3]|[5-7])([0-2]|[5-6])[0-9]{1,}'
     pattn = re.compile(p)
@@ -44,6 +43,7 @@ def getVolts():
             else:
                 volt.add(v)
     volt = sorted(list(volt),reverse=True)
+    print("电压等级：(kV)")
     if len(volt)>3:
         print(volt[:3])
     else:
@@ -64,11 +64,18 @@ def getBuses():
     for bus in res:
         b = pattn.search(bus[0])
         if b is not None:
-           buses.add(b.group())
+            b = b.group()
+            if len(b)==4 and int(b[-2:])>10 :
+                continue
+            buses.add(b)
     sorted(buses)
+    print("母线总数：",len(buses))
     print(buses)
 
 def getLines():
+    '''
+       获得线路数
+    '''
     p = r'(\d{2,}\D{2,}线路\d+)|(\d{2,}\D{2,}线)|(.*线)'
     pattn = re.compile(p)
 
@@ -86,11 +93,11 @@ def getLines():
             if '在线' in value.group() or '消弧' in value.group():
                 continue
             lines[key.group()] = value.group()
-    print("总数：",len(lines))
+    print("线路总数：",len(lines))
     print(lines)
 
 if __name__=='__main__':
-    #getTransformers()
-    #getVolts()
-    #getBuses()
+    getTransformers()
+    getVolts()
+    getBuses()
     getLines()
