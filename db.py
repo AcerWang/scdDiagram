@@ -1,6 +1,5 @@
 import sqlite3
 
-
 def insert(sql,data):
 	res = 0
 	try:
@@ -27,7 +26,7 @@ def select(sql):
 	except Exception as e:
 		print(e)
 	if res is not None:
-		print('取得数据')
+		#print('取得数据')
 		return res
 	else:
 		print("无可用数据")
