@@ -5,7 +5,7 @@ def getTransformers():
     '''
        获得变压器台数
     '''
-    p = '(#\d主变)|(\d#主变)|(\d号主变)'
+    p = r'(#\d主变)|(\d#主变)|(\d号主变)'
     pattn = re.compile(p)
 
     trans = set()
@@ -28,7 +28,7 @@ def getVolts():
     '''
        获得线路电压等级
     '''
-    p = '([1-3]|[5-7])([0-2]|[5-6])[0-9]{1,}'
+    p = r'([1-3]|[5-7])([0-2]|[5-6])[0-9]{1,}'
     pattn = re.compile(p)
 
     volt = set()
@@ -53,7 +53,7 @@ def getBuses():
     '''
        获得母线数量
     '''
-    p = '\d{3,}'
+    p = r'\d{3,}'
     pattn = re.compile(p)
 
     buses = set()
@@ -68,7 +68,29 @@ def getBuses():
     sorted(buses)
     print(buses)
 
+def getLines():
+    p = r'(\d{2,}\D{2,}线路\d+)|(\d{2,}\D{2,}线)|(.*线)'
+    pattn = re.compile(p)
+
+    lines = dict()
+    sql = "select name,desc from ied where name like '%L%' and desc like '%线%'"
+
+    res = db.select(sql)
+
+    for line in res:
+        key = re.search(r'\d{3,}',line[0])
+        value = pattn.search(line[1])
+        if key is not None and value is not None:
+            if key.group() in lines:
+                continue
+            if '在线' in value.group() or '消弧' in value.group():
+                continue
+            lines[key.group()] = value.group()
+    print("总数：",len(lines))
+    print(lines)
+
 if __name__=='__main__':
     #getTransformers()
     #getVolts()
-    getBuses()
+    #getBuses()
+    getLines()
