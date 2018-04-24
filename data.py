@@ -10,7 +10,7 @@ def getTransformers():
 
     trans = set()
 
-    sql = "select `desc` from `ied` where `desc` like '%主变%'"
+    sql = "select `desc` from `ied` where `name` like '%T%' and `desc` like '%主变%'"
     res = db.select(sql)
     if res is not None:
         for row in res:
@@ -76,7 +76,7 @@ def getLines():
     '''
        获得线路数
     '''
-    p = r'(\d{2,}\D{2,}线路\d+)|(\d{2,}\D{2,}线)|(.*线)'
+    p = r'(\d{2,4}\D{2,}\d?\D*?线路?\d*)|(\D*线\d*)'
     pattn = re.compile(p)
 
     lines = dict()
