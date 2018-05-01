@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 	<title>图元</title>
+	<script type="text/javascript" src="jquery-3.3.1.min.js"></script>
 
 	<style>
 		body,svg{
@@ -14,6 +15,21 @@
 			height:100%
 		}
 	</style>
+	
+	<script type='text/javascript'>
+		$(document).ready(function($){
+			//alert('ok');
+			//$('#T1').attr('transform','rotate(90 500 300)');
+			$('#Bus3,#Bus4').attr('width','500');
+			//$('#Bus3').attr('transform','rotate(-90 100 500)');
+			//$('#Bus4').attr('transform','rotate(-90 700 500)');
+			
+		});
+		
+		function setBus(){
+			
+		}
+	</script
 </head>
 
 <body>
@@ -59,9 +75,13 @@
 	
 	<symbol id="Earth-v" stroke-width="2" stroke="red">
 		<line x1="20" y1="0" x2="20" y2="15" />
-		<line x1="12" y1="15" x2="28" y2="15" />
-		<line x1="14" y1="20" x2="26" y2="20" />
-		<line x1="16" y1="25" x2="24" y2="25" />
+		<line x1="15" y1="15" x2="25" y2="15" />
+		<line x1="20" y1="25" x2="30" y2="16" />
+		
+		<line x1="20" y1="25" x2="20" y2="40" />
+		<line x1="12" y1="40" x2="28" y2="40" />
+		<line x1="14" y1="45" x2="26" y2="45" />
+		<line x1="16" y1="50" x2="24" y2="50" />
 	</symbol>
 	
 	<symbol id="Cap-h" width="40" height="40" stroke-width="2" stroke="red">
@@ -90,6 +110,16 @@
 		<line x1='5' y1='0' x2='5' y2='900' stroke="red" stroke-width="5"  />
 	</symbol>
 	
+	<symbol id="Surger" width="40" height="60" fill-opacity="0.0" stroke-width="2" stroke="red">
+		<line x1="10" y1="0" x2="10" y2="20" />
+		<rect x="5" y="10" width="10" height="20" />
+		<path d="M7 12 L10 21 L13 12" stroke-width="1"/>
+		<line x1="10" y1="30" x2="10" y2="40" />
+		<line x1="2" y1="40" x2="18" y2="40" />
+		<line x1="4" y1="45" x2="16" y2="45" />
+		<line x1="6" y1="50" x2="14" y2="50" />
+	</symbol>
+	
 	<use id='T1' x='500' y='300' xlink:href="#Trans" />
 	<use id='T2' x='800' y='300' xlink:href="#Trans" />
 	
@@ -97,8 +127,12 @@
 	<use id='Bus2' x='200' y='150' xlink:href='#Bus-h' />
 	
 	<use id='Bus3' x='100' y='500' xlink:href='#Bus-h' />
+	<use id='Bus4' x='700' y='500' xlink:href='#Bus-h' />
 	
-	
+	<use id='s' x='30' y='0' xlink:href='#Surger' />
+	<use id='s' x='0' y='0' xlink:href='#Earth-v' /> 
+	<use id='s' x='50' y='0' xlink:href='#Isolator-v' /> 
+	<path d="M70 40 L70 100" stroke="blue" stroke-width="2" />
 	
 </svg>
 	
