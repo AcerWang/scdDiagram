@@ -1,5 +1,6 @@
 import db
 import re
+from conv2json import conv2json
 
 def getTransformers():
     '''
@@ -20,8 +21,9 @@ def getTransformers():
             t = t.group().replace("#","")
             trans.add(t)
 
-    print("主变台数：",len(sorted(trans,reverse=False)))
-    print(trans)
+    # print("主变台数：",len(sorted(trans,reverse=False)))
+    # print(trans)
+    return list(trans)
 
 def getVolts():
     '''
@@ -43,11 +45,13 @@ def getVolts():
             else:
                 volt.add(v)
     volt = sorted(list(volt),reverse=True)
-    print("电压等级：(kV)")
+    # print("电压等级：(kV)")
     if len(volt)>3:
-        print(volt[:3])
+        # print(volt[:3])
+        return volt[:3]
     else:
-        print(volt)
+        # print(volt)
+        return volt
 
 def getBuses():
     '''
@@ -69,8 +73,9 @@ def getBuses():
                 continue
             buses.add(b)
     sorted(buses)
-    print("母线总数：",len(buses))
-    print(buses)
+    # print("母线总数：",len(buses))
+    # print(buses)
+    return list(buses)
 
 def getLines():
     '''
@@ -93,11 +98,16 @@ def getLines():
             if '在线' in value.group() or '消弧' in value.group():
                 continue
             lines[key.group()] = value.group()
-    print("线路总数：",len(lines))
-    print(lines)
+    # print("线路总数：",len(lines))
+    # print(lines)
+    return lines
 
 if __name__=='__main__':
-    getTransformers()
-    getVolts()
-    getBuses()
-    getLines()
+    t = getTransformers()
+    v = getVolts()
+    b = getBuses()
+    l = getLines()
+    jsonstr = conv2json(t,v,b,l)
+    print(jsonstr)
+    with open('data.json','w') as f:
+        f.write(jsonstr)
