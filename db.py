@@ -1,9 +1,24 @@
 import sqlite3
 
+def tb_desc(sql):
+    desc = []
+    try:
+        conn = sqlite3.connect('test.db')
+        cursor = conn.cursor()
+        cursor.execute(sql)
+        
+        desc = cursor.description
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        print(e)
+        return None
+    return [e[0] for e in desc]
+
 def insert(sql,data):
 	res = 0
 	try:
-		conn = sqlite3.connect('BZB.db')
+		conn = sqlite3.connect('test.db')
 		cursor = conn.cursor()
 		cursor.executemany(sql,data)
 		res = cursor.rowcount
