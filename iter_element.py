@@ -31,7 +31,8 @@ def resolve(scd_file,element,element_parent):
                 attrs = []
                 element_no += 1
                 for field in tb_desc:
-                    if field.startswith(str.lower(element_parent)):
+                    # doi for ln ln0 use the second to compare
+                    if field.startswith(str.lower(element_parent)) or field.startswith(str.lower(element_parent)[:2]):
                         attrs.append(field+"_"+str(parent_no))
                     elif field.startswith(str.lower(element)):
                         attrs.append(field+"_"+str(element_no))
@@ -44,7 +45,7 @@ def resolve(scd_file,element,element_parent):
 
 if __name__ == '__main__':
     start = time.clock()
-    resolve('./scd/HSB.scd','AccessPoint','IED')
+    resolve('./scd/HSB.scd','DOI','LN0')
     end = time.clock()
 
     print("程序总运行时间：",end-start,"s")
