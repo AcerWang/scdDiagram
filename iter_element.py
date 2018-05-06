@@ -25,9 +25,11 @@ def resolve(scd_file,element,element_parent):
             if ele.tag == ns+element_parent:
                 parent_no += 1               
         else:
-            if ele.tag != ns+element_parent:
+            # if not the target element, clean it, save memory
+            if ele.tag != ns+element:
+                ele.clear()
                 continue
-            for e in ele.iterfind(ns+element):
+            for e in ele.iter(ns+element):
                 attrs = []
                 element_no += 1
                 for field in tb_desc:
@@ -39,13 +41,13 @@ def resolve(scd_file,element,element_parent):
                     else:
                         attrs.append(e.get(field))
                 data.append(tuple(attrs))
-            ele.clear()
+
     db.insert(insert_sql,data)
     print("总共{%d,%d}条数据！"%(parent_no,element_no))
 
 if __name__ == '__main__':
     start = time.clock()
-    resolve('./scd/HSB.scd','DOI','LN0')
+    resolve('./scd/STHB.scd','DOI','LN0')
     end = time.clock()
 
     print("程序总运行时间：",end-start,"s")
