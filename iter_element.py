@@ -1,5 +1,5 @@
 #-*- encoding=utf8 -*-
-import db
+from db import DataBase
 import xml.etree.ElementTree as ET
 import time
 
@@ -12,6 +12,8 @@ def resolve(scd_file,element,element_parent):
 
     parent_no, element_no = 0, 0
     data = []
+
+    db = DataBase()
     
     tb_desc = db.tb_desc('select * from %s limit 1'%element)
     print(tb_desc)
@@ -20,29 +22,50 @@ def resolve(scd_file,element,element_parent):
     
     ns = '{http://www.iec.ch/61850/2003/SCL}'
 
+    in_Parent = False
     for event,ele in iterObj:
         if event == 'start':
             if ele.tag == ns+element_parent:
-                parent_no += 1               
-        else:
+                in_Parent = True
+                parent_no += 1
+                continue
+
+        elif event == 'end':
+            # if end of parent element, clean it, save memory
+            if ele.tag == ns+element_parent:
+                ele.clear()
+                in_Parent = False
+                continue
+
+            if not in_Parent:
+                ele.clear()
+                continue
+            
             # if not the target element, clean it, save memory
             if ele.tag != ns+element:
                 ele.clear()
                 continue
+            
+            # if is target element, retrive data
             for e in ele.iter(ns+element):
                 attrs = []
                 element_no += 1
                 for field in tb_desc:
                     # doi for ln ln0 use the second to compare
-                    if field.startswith(str.lower(element_parent)) or field.startswith(str.lower(element_parent)[:2]):
-                        attrs.append(field+"_"+str(parent_no))
+                    if field.startswith(str.lower(element_parent)) or field.startswith(str.lower(element_parent[:2])):
+                        attrs.append(element_parent+"_"+str(parent_no))
                     elif field.startswith(str.lower(element)):
-                        attrs.append(field+"_"+str(element_no))
+                        attrs.append(element+"_"+str(element_no))
                     else:
                         attrs.append(e.get(field))
                 data.append(tuple(attrs))
-
+                #for large data, push into database per 10000 items
+                if element_no%10000 == 0:
+                    db.insert(insert_sql,data)
+                    data = []       
     db.insert(insert_sql,data)
+    db.close_connection()
+
     print("总共{%d,%d}条数据！"%(parent_no,element_no))
 
 if __name__ == '__main__':
