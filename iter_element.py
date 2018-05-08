@@ -12,6 +12,7 @@ def resolve(scd_file,element,element_parent):
 
     parent_no, element_no = 0, 0
     data = []
+    value = None
 
     db = DataBase()
     
@@ -31,6 +32,13 @@ def resolve(scd_file,element,element_parent):
                 continue
 
         elif event == 'end':
+            
+            # Val for DAI
+            if ele.tag == ns+'Val':
+                value = ele.text
+                ele.clear()
+                continue
+
             # if end of parent element, clean it, save memory
             if ele.tag == ns+element_parent:
                 ele.clear()
@@ -57,6 +65,10 @@ def resolve(scd_file,element,element_parent):
                     elif field.startswith(str.lower(element)):
                         attrs.append(element+"_"+str(element_no))
                     else:
+                        if field == 'val':
+                            attrs.append(value)
+                            value = None
+                            continue
                         attrs.append(e.get(field))
                 data.append(tuple(attrs))
                 #for large data, push into database per 10000 items
@@ -70,7 +82,7 @@ def resolve(scd_file,element,element_parent):
 
 if __name__ == '__main__':
     start = time.clock()
-    resolve('./scd/STHB.scd','DOI','LN0')
+    resolve('./scd/HSB.scd','DAI','DOI')
     end = time.clock()
 
     print("程序总运行时间：",end-start,"s")
