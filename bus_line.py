@@ -9,7 +9,7 @@ data = [['PE1101','I-III母联保护'],
         ]
 
 def getInfo():
-    p = re.compile(r'([1-9]|[IV]+)-([1-9]|[IV]+).*(\d{4})*')
+    p = re.compile(r'([1-9]|[IV]+)-([1-9]|[IV]+)|(\d{4})')
     
     # db_obj = db.DataBase()
     # sql = '''select name,desc from IED where desc like "%母联%" or desc like "%分段%"'''
