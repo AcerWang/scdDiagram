@@ -2,6 +2,9 @@ from DBHelper import DataBase
 import re
 import json
 
+dig_index = ['1','2','3','4','5','6','7','8','9']
+char_index = ['I','II','III','IV','V','VI','VII','VIII','IX']
+
 def conv2json(t=None,v=None,b=None,l=None,l_b=None):
     '''
         将获得的数据转换为json格式
@@ -74,8 +77,19 @@ def getBuses(db):
             if len(b)==4 and int(b[-2:])>10 :
                 continue
             buses.add(b)
-    sorted(buses)
-    return list(buses)
+    m = {}
+    s = []
+    for bus in buses:
+        volt = bus[:2]
+        volt = volt if volt in ['10','35','66'] else volt+'0'
+        if volt in m:
+            m[volt].append(int(bus[-1]))
+        else:
+            s.append(int(bus[-1]))
+            m[volt] = s
+            s = []
+    
+    return m
 
 def getLines(db):
     '''
@@ -100,18 +114,11 @@ def getLines(db):
             lines[key.group()] = value.group()
     return lines
 
-def getMU(db):
+def getBusRelationship(db):
     '''
-        获得线路合并单元
+        获得母线连接关系
     '''
-    sql = 'select name,desc from ied where desc like "%合%" and name like "%M%L%"'
-    db.select(sql)
-
-def getLine_Bus(db):
-    '''
-        获得母线上的线路
-    '''
-    p = re.compile(r'([1-9]|[IV]+)-([1-9]|[IV]+)|(\d{4})')
+    p = re.compile(r'([1-9]|[IVX]+)-([1-9]|[IVX]+)|([123567][012356][1-9]{2})')
     
     sql = '''select name,desc from IED where desc like "%母联%" or desc like "%分段%"'''
     data = db.select(sql)
@@ -135,7 +142,15 @@ def getLine_Bus(db):
             info[name] = {flag:None}
             continue
         
-        desc = desc.group().split('-')
+        desc = desc.group().split('-') if '-' in desc.group() else list(desc.group()[-2])
+        i = 0
+        for x in desc:
+            if x in char_index:
+                desc[i] = char_index.index(x)+1
+                i += 1
+            else:
+                desc[i] = dig_index.index(x)+1
+                i += 1
 
         if name in info:
             if flag in info[name]:
@@ -153,22 +168,56 @@ def getLine_Bus(db):
             v = []
     return info
     
+def getLineBus(db):
+    '''
+        获得线路与母线关系
+    '''
+    p_bus = re.compile(r'[1-9]|[IVX]+')
+    p_line = re.compile(r'\d{3,4}')
+
+    sql = '''select DISTINCT tmp.Line,LN.desc from tmp 
+            INNER JOIN LN on LN.inst=tmp.lnInst and LN.lnClass=tmp.lnClass 
+            where LN.ldevice_id = (select IEDTree.LD_id FROM IEDTree where IEDTree.IED=tmp.Ref_To and IEDTree.LDevice=tmp.ldInst)'''
+    res = db.select(sql)
+    
+    if res is None:
+        return None
+    
+    m = {}
+    b = []
+    for data in res:
+        line = p_line.search(data[0]).group()
+        bus = p_bus.search(data[1]).group()
+
+        bus = dig_index.index(bus)+1 if bus in dig_index else char_index.index(bus)+1
+        if line in m:
+            if bus in m[line]:
+                continue
+            m[line].append(bus)
+        else:
+            b.append(bus)
+            m[line] = b
+            b = []
+    return m
+
 if __name__=='__main__':
     import time
     start = time.clock()
     db = DataBase()
 
-    t = getTransformers(db)
-    v = getVolts(db)
-    b = getBuses(db)
-    l = getLines(db)
-    l_b = getLine_Bus(db)
+    # t = getTransformers(db)
+    # v = getVolts(db)
+    #b = getBuses(db)
+    #m = getLineBus(db)
+    # l = getLines(db)
+    l_b = getBusRelationship(db)
+    print(l_b)
 
-    jsonstr = conv2json(t,v,b,l,l_b)
+    # jsonstr = conv2json(t,v,b,l,l_b)
 
-    print(jsonstr)
-    with open('res/data.json','w') as f:
-        f.write(jsonstr)
+    # print(jsonstr)
+    # with open('res/data.json','w') as f:
+    #     f.write(jsonstr)
     
     db.close_connection()
     end = time.clock()
