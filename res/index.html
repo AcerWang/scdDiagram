@@ -1,48 +1,168 @@
+﻿<!DOCTYPE html>
 <html>
-<head>
-	<title>图元</title>
-	<script type="text/javascript">
-	var ang = 90;
-	function f(){
-		var e = document.getElementById("Breaker");
-		e.setAttribute("transform","rotate("+ang+")");
-		ang+=90;
-	}
-	</script>
-</head>
+	<head>
+		<meta charset="utf-8">
+		<title>主接线图</title>
+		<script type="text/javascript" src="./res/jquery-3.3.1.min.js"></script>
 
-<body>
-	<svg width="40" height="40" title="母线">
-		<line x1="0" y1="20" x2="40" y2="20" stroke-width="5" stroke="red"/>
-	</svg>
-	<svg width="40" height="40" title="变压器">
-		<circle cx="20" cy="15" r="10" fill-opacity="0.4" stroke="red" stroke-width="2" fill="white"/>
-		<circle cx="15" cy="25" r="10" fill-opacity="0.4" stroke="red" stroke-width="2" fill="white"/>
-		<circle cx="25" cy="25" r="10" fill-opacity="0.4" stroke="red" stroke-width="2" fill="white"/>
-	</svg>
-	<svg id="Breaker" width="40" height="40" title="断路器">
-		<line x1="0" y1="20" x2="40" y2="20" stroke-width="2" stroke="red"/>
-		<rect x="10" y="15" width="20" height="10" fill="white" stroke-width="2" stroke="red"/>
-	</svg>
-	<svg width="40" height="40" title="隔离开关">
-		<line x1="20" y1="0" x2="20" y2="15" stroke-width="2" stroke="red"/>
-		<line x1="15" y1="15" x2="25" y2="15" stroke-width="2" stroke="red"/>
-		<line x1="20" y1="25" x2="29" y2="16" stroke-width="2" stroke="red"/>
-		<line x1="20" y1="25" x2="20" y2="40" stroke-width="2" stroke="red"/>
-	</svg>
-	<svg width="40" height="40" title="接地刀闸">
-		<line x1="20" y1="0" x2="20" y2="15" stroke-width="2" stroke="red"/>
-		<line x1="12" y1="15" x2="28" y2="15" stroke-width="2" stroke="red"/>
-		<line x1="14" y1="20" x2="26" y2="20" stroke-width="2" stroke="red"/>
-		<line x1="16" y1="25" x2="24" y2="25" stroke-width="2" stroke="red"/>
-	</svg>
-	<svg width="40" height="40" title="电容器">
-		<line x1="20" y1="0" x2="20" y2="15" stroke-width="2" stroke="red"/>
-		<line x1="13" y1="15" x2="27" y2="15" stroke-width="2" stroke="red"/>
-		<line x1="13" y1="25" x2="27" y2="25" stroke-width="2" stroke="red"/>
-		<line x1="20" y1="25" x2="20" y2="40" stroke-width="2" stroke="red"/>
-	</svg>
-	<button onclick="f()">Click</button>
+		<style>
+			body,svg{
+				margin:0;
+				padding:0;				
+			}
+			html,body,svg{
+				width:1920px;
+				height:1080px;
+				font:12px arial;
+			}
+		</style>
+		
+		<script type='text/javascript'>
+			$(document).ready(function($){
+				//alert('ok');
+				//$('#T1').attr('transform','rotate(90 500 300)');
+				$('#Bus3,#Bus4').attr('width','500');
+				//$('#Bus3').attr('transform','rotate(-90 100 500)');
+				//$('#Bus4').attr('transform','rotate(-90 700 500)');
+				
+			});
+			
+			function setBus(){
+				
+			}
+		</script>
+	</head>
 
-</body>
+	<body>
+		<svg xmlns="http://www.w3.org/2000/svg" version="1.1" >
+
+			<symbol id="Trans" width="40" height="40" fill-opacity="0.4" stroke="red" stroke-width="2" fill="white">
+				<circle cx="20" cy="15" r="10" />
+				<circle cx="15" cy="25" r="10" />
+				<circle cx="25" cy="25" r="10" />
+				<text x="40" y="20" stroke-width="0.5" dy="0" stroke='black' fill="black" fill-opacity="1.0">T1</text>
+			</symbol>
+			
+			<symbol id="Breaker-h" fill-opacity="0.0" stroke-width="1" stroke="red">
+				<path d="M0 20 L10 20 M30 20 L40 20" />
+				<rect x="10" y="15" width="20" height="10" />
+			</symbol>
+			
+			<symbol id="Breaker-v" fill-opacity="0.0" stroke-width="1" stroke="red">
+				<path d="M10 0 L10 10 M10 30 L10 40" />
+				<rect x="5" y="10" width="10" height="20" />
+			</symbol>
+			
+			<symbol id="Isolator-h" -webkit-transform="rotate(90deg)" width="40" height="40" stroke-width="1" stroke="red">
+				<line x1="0" y1="10" x2="15" y2="10" />
+				<line x1="15" y1="5" x2="15" y2="15" />
+				<line x1="15" y1="0" x2="25" y2="10" />
+				<line x1="25" y1="10" x2="40" y2="10" />
+			</symbol>
+			
+			<symbol id="Isolator-v" width="40" height="40" stroke-width="1" stroke="red">
+				<path d="M20 0 L20 15 L30 25" fill-opacity="0.0" />
+				<path d="M15 25 L25 25 M20 25 L20 40" fill-opacity="0.0" />
+				
+			</symbol>
+			
+			
+			<symbol id="Earth-h" stroke-width="1" stroke="red">
+				<line x1="0" y1="10" x2="15" y2="10" />
+				<line x1="15" y1="2" x2="15" y2="18" />
+				<line x1="20" y1="4" x2="20" y2="16" />
+				<line x1="25" y1="6" x2="25" y2="14" />
+			</symbol>
+			
+			<symbol id="Earth-v" stroke-width="1" stroke="red">
+				<line x1="20" y1="0" x2="20" y2="15" />
+				<line x1="15" y1="15" x2="25" y2="15" />
+				
+				<path d="M30 16 L20 25 L20 40" fill-opacity="0.0" />
+				
+				<line x1="12" y1="40" x2="28" y2="40" />
+				<line x1="14" y1="45" x2="26" y2="45" />
+				<line x1="16" y1="50" x2="24" y2="50" />
+			</symbol>
+			
+			<symbol id="Cap-h" width="40" height="40" stroke-width="1" stroke="red">
+				<line x1="0" y1="10" x2="15" y2="10" />
+				<line x1="15" y1="3" x2="15" y2="17" />
+				<line x1="25" y1="3" x2="25" y2="17" />
+				<line x1="25" y1="10" x2="40" y2="10" />
+			</symbol>
+			
+			<symbol id="Cap-v" width="40" height="40" stroke-width="1" stroke="red">
+				<line x1="20" y1="0" x2="20" y2="15" />
+				<line x1="13" y1="15" x2="27" y2="15" />
+				<line x1="13" y1="25" x2="27" y2="25" />
+				<line x1="20" y1="25" x2="20" y2="40" />
+			</symbol>
+			
+			<symbol id="Point" width="10" height="10">
+				<circle cx='5' cy='5' r='5' fill="red" />
+			</symbol>
+			
+			<symbol id="Bus-h" height="10" width="800" stroke="red">
+				<text x="0" y="10" stroke-width="0.5" dy="0" stroke='black'>III</text>
+				<line x1='20' y1='5' x2="800" y2='5' stroke-width="5"  />
+			</symbol>
+			
+			<symbol id="Bus-v" height="500" width="10" stroke="red">
+				<line x1='5' y1='0' x2='5' y2='500' stroke-width="5"  />
+			</symbol>
+
+			<symbol id="BusUnion" height="100" width="50" stroke="red">
+					<use x="20" y="30" xlink:href="#Breaker-v" />
+					<path d="M30 30 L30 1 L1 1 L1 25 M30 70 L30 100 L1 100 L1 75 M25 20 L35 10 M25 85 L35 75" fill-opacity="0.0" />
+			</symbol>
+			
+			<symbol id="BusSeg" height="50" width="100" stroke="red">
+					<use x="30" y="0" xlink:href="#Breaker-h" />
+					<path d="M30 20 L1 20 L1 50 M70 20 L100 20 L100 50 M10 25 L20 15 M80 25 L90 15" fill-opacity="0.0" />
+			</symbol>
+
+			<symbol id="Surger" width="40" height="60" fill-opacity="0.0" stroke-width="1" stroke="red">
+				<line x1="10" y1="0" x2="10" y2="20" />
+				<rect x="5" y="10" width="10" height="20" />
+				<path d="M7 12 L10 21 L13 12" stroke-width="1"/>
+				<line x1="10" y1="30" x2="10" y2="40" />
+				<line x1="2" y1="40" x2="18" y2="40" />
+				<line x1="4" y1="45" x2="16" y2="45" />
+				<line x1="6" y1="50" x2="14" y2="50" />
+			</symbol>
+
+			<symbol id="Line-Up" width="60" height="200" stroke-width="1" stroke="red">
+				<text x="8" y="0" stroke-width="0.3" dy="0" stroke='black' style="writing-mode: tb;">110kV巴复二线264</text>
+				<line  x1="20" y1="0" x2="20" y2="80" />
+				<use x="0" y="80" xlink:href="#Isolator-v" />
+				<use x="10" y="120" xlink:href="#Breaker-v" />
+				<use x="0" y="160" xlink:href="#Isolator-v" />
+			</symbol>
+
+			<symbol id="Line-Down" width="60" height="200" stroke-width="1" stroke="red">
+				<use x="0" y="0" xlink:href="#Isolator-v" />
+				<use x="10" y="40" xlink:href="#Breaker-v" />
+				<use x="0" y="80" xlink:href="#Isolator-v" />
+				<line  x1="20" y1="120" x2="20" y2="200" />
+				<text x="8" y="120" stroke-width="0.3" dy="0" stroke='black' style="writing-mode: tb;">110kV巴复二线264</text>
+			</symbol>
+			
+			
+			<use id='T1' x='300' y='450' xlink:href="#Trans" />
+			<use id='T2' x='600' y='450' xlink:href="#Trans" />
+			
+			<use id='Bus1' x='50' y='250' xlink:href='#Bus-h' />
+			<use id='Bus2' x='50' y='300' xlink:href='#Bus-h' />
+			
+			<use id='Bus3' x='50' y='600' xlink:href='#Bus-h' />
+			<use id='Bus4' x='600' y='600' xlink:href='#Bus-h' />
+			
+			<use id='L1' x='100' y='0' xlink:href='#Line-Up' />
+			<use id='L2' x='300' y='700' xlink:href='#Line-Down' />
+			<use id="union" x="840" y="230" xlink:href="#BusUnion" />
+			<use id="Seg" x="535" y="555" xlink:href="#BusSeg" />
+		</svg>
+		
+	</body>
 </html>
