@@ -114,6 +114,16 @@ def getLines(db):
             lines[key.group()] = value.group()
     return lines
 
+def getRelation(db):
+    '''
+        获得线路引用关系
+    '''
+    sql = '''CREATE TABLE tmp as SELECT IEDTree.IED as Line,ExtRef.iedName as Ref_To,ExtRef.lnClass,ExtRef.lnInst,ExtRef.ldInst,ExtRef.prefix ,ExtRef.doName 
+            from LN,ExtRef INNER JOIN IEDTree on LN.ldevice_id=IEDTree.LD_id where LN.ldevice_id in 
+            ( SELECT IEDTree.LD_id FROM IEDTree  WHERE  IEDTree.IED LIKE "M%L%" AND IEDTree.AccessPoint LIKE "M%" ) and LN.lnClass="LLN0"
+            and LN.id=ExtRef.ln0_id and ExtRef.lnClass!="LLN0"'''
+    db.select(sql)
+
 def getBusRelationship(db):
     '''
         获得母线连接关系
@@ -177,12 +187,14 @@ def getLineBus(db):
 
     sql = '''select DISTINCT tmp.Line,LN.desc from tmp 
             INNER JOIN LN on LN.inst=tmp.lnInst and LN.lnClass=tmp.lnClass 
-            where LN.ldevice_id = (select IEDTree.LD_id FROM IEDTree where IEDTree.IED=tmp.Ref_To and IEDTree.LDevice=tmp.ldInst)'''
+            where LN.ldevice_id = (select IEDTree.LD_id FROM IEDTree where IEDTree.IED=tmp.Ref_To and IEDTree.LDevice=tmp.ldInst) and tmp.Ref_To like "M%"'''
     res = db.select(sql)
     
-    if res is None:
+    if res == []:
         return None
     
+    l = getLines(db)
+
     m = {}
     b = []
     for data in res:
@@ -190,6 +202,9 @@ def getLineBus(db):
         bus = p_bus.search(data[1]).group()
 
         bus = dig_index.index(bus)+1 if bus in dig_index else char_index.index(bus)+1
+        
+        if line not in l:
+            continue
         if line in m:
             if bus in m[line]:
                 continue
@@ -205,11 +220,16 @@ if __name__=='__main__':
     start = time.clock()
     db = DataBase()
 
-    # t = getTransformers(db)
+    getRelation(db)
+    t = getTransformers(db)
+    print(t)
     # v = getVolts(db)
-    #b = getBuses(db)
-    #m = getLineBus(db)
-    # l = getLines(db)
+    b = getBuses(db)
+    print(b)
+    l = getLines(db)
+    print(l)
+    m = getLineBus(db)
+    print(m)
     l_b = getBusRelationship(db)
     print(l_b)
 
