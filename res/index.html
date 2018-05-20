@@ -3,7 +3,7 @@
 	<head>
 		<meta charset="utf-8">
 		<title>主接线图</title>
-		<script type="text/javascript" src="./res/jquery-3.3.1.min.js"></script>
+		<script type="text/javascript" src="jquery-3.3.1.min.js"></script>
 
 		<style>
 			body,svg{
@@ -132,20 +132,32 @@
 				<line x1="6" y1="50" x2="14" y2="50" />
 			</symbol>
 
+			<symbol id="Line-Union-up" width="40" height="100">
+				<path d="M0 1 L20 1 L20 50" fill-opacity="0.0" />
+				<use x="0" y="50" xlink:href="#Isolator-v" />
+			</symbol>
+
+			<symbol id="Line-Union-down" width="40" height="100">
+				<use x="0" y="0" xlink:href="#Isolator-v" />
+				<path d="M20 40 L20 80 L0 80" fill-opacity="0.0" />
+			</symbol>
+
 			<symbol id="Line-Up" width="60" height="200" stroke-width="1" stroke="red">
 				<text x="8" y="0" stroke-width="0.3" dy="0" stroke='black' style="writing-mode: tb;">110kV巴复二线264</text>
 				<line  x1="20" y1="0" x2="20" y2="80" />
 				<use x="0" y="80" xlink:href="#Isolator-v" />
 				<use x="10" y="120" xlink:href="#Breaker-v" />
 				<use x="0" y="160" xlink:href="#Isolator-v" />
+				<use x="20" y="160" xlink:href="#Line-Union-up" display=""/>
 			</symbol>
 
 			<symbol id="Line-Down" width="60" height="200" stroke-width="1" stroke="red">
-				<use x="0" y="0" xlink:href="#Isolator-v" />
-				<use x="10" y="40" xlink:href="#Breaker-v" />
-				<use x="0" y="80" xlink:href="#Isolator-v" />
-				<line  x1="20" y1="120" x2="20" y2="200" />
-				<text x="8" y="120" stroke-width="0.3" dy="0" stroke='black' style="writing-mode: tb;">110kV巴复二线264</text>
+				<use x="20" y="0" xlink:href="#Line-Union-down" display=""/>
+				<use x="0" y="40" xlink:href="#Isolator-v" />
+				<use x="10" y="80" xlink:href="#Breaker-v" />
+				<use x="0" y="120" xlink:href="#Isolator-v" />
+				<line  x1="20" y1="160" x2="20" y2="240" />
+				<text x="8" y="140" stroke-width="0.3" dy="0" stroke='black' style="writing-mode: tb;">110kV巴复二线264</text>
 			</symbol>
 			
 			
@@ -158,7 +170,7 @@
 			<use id='Bus3' x='50' y='600' xlink:href='#Bus-h' />
 			<use id='Bus4' x='600' y='600' xlink:href='#Bus-h' />
 			
-			<use id='L1' x='100' y='0' xlink:href='#Line-Up' />
+			<use id='L1' x='100' y='55' xlink:href='#Line-Up' />
 			<use id='L2' x='300' y='700' xlink:href='#Line-Down' />
 			<use id="union" x="840" y="230" xlink:href="#BusUnion" />
 			<use id="Seg" x="535" y="555" xlink:href="#BusSeg" />
