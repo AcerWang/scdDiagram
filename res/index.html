@@ -36,11 +36,19 @@
 	<body>
 		<svg xmlns="http://www.w3.org/2000/svg" version="1.1" >
 
-			<symbol id="Trans" width="40" height="40" fill-opacity="0.4" stroke="red" stroke-width="2" fill="white">
+			<symbol id="Trans" width="40" height="40" fill-opacity="0.4"  stroke-width="2" fill="white">
 				<circle cx="20" cy="15" r="10" />
 				<circle cx="15" cy="25" r="10" />
 				<circle cx="25" cy="25" r="10" />
 				<text x="40" y="20" stroke-width="0.5" dy="0" stroke='black' fill="black" fill-opacity="1.0">T1</text>
+			</symbol>
+			
+			<symbol id="Breaker-3" fill-opacity='0.0' stroke-width='1' stroke='red'>
+				<path d='M15 0 L15 150' />
+				<rect x='10' y='15' width='10' height='20' fill-opacity='1.0' fill='white' />
+				<rect x='10' y='65' width='10' height='20' fill-opacity='1.0' fill='white' />
+				<rect x='10' y='115' width='10' height='20' fill-opacity='1.0' fill='white' />
+				<path d='M11 13 L19 7 M11 143 L19 137 M11 43 L19 37 M11 63 L19 57 M11 93 L19 87 M11 113 L19 107' />
 			</symbol>
 			
 			<symbol id="Breaker-h" fill-opacity="0.0" stroke-width="1" stroke="red">
@@ -113,14 +121,18 @@
 			</symbol>
 			
 			
-			<use id='T1' x='300' y='450' xlink:href="#Trans" />
-			<use id='T2' x='600' y='450' xlink:href="#Trans" />
+			<use id='T1' x='300' y='450' xlink:href="#Trans" stroke='black'/>
+			<use id='T2' x='600' y='450' xlink:href="#Trans" stroke='black'/>
 			
 			<use id='Bus1' x='50' y='260' xlink:href='#Bus-h' />
 			<use id='Bus2' x='50' y='300' xlink:href='#Bus-h' />
 			
 			<use id='Bus3' x='50' y='600' xlink:href='#Bus-h' />
 			<use id='Bus4' x='600' y='600' xlink:href='#Bus-h' />
+			
+			<line id='Bus5' x1='900' y1='250' x2='1300' y2='250' stroke-width='5' stroke='red' />
+			<line id='Bus5' x1='900' y1='400' x2='1300' y2='400' stroke-width='5' stroke='red' />
+			<use id='1' x='1000' y='250' xlink:href="#Breaker-3"/>
 			
 			<use id='L1' x='100' y='75' xlink:href='#Line-Up' />
 			<use id='L2' x='300' y='565' xlink:href='#Line-Down' />
