@@ -17,21 +17,21 @@ def getTransformers(db):
     '''
        获得变压器台数
     '''
-    p = r'(#\d主变)|(\d#主变)|(\d号主变)'
+    p = r'(\d+)'
     pattn = re.compile(p)
 
     trans = set()
 
-    sql = "select `desc` from `ied` where `name` like '%T%' and `desc` like '%主变%'"
+    sql = "select `name` from `IED` where `desc` like '%主变%保护%'"
     res = db.select(sql)
     if res is not None:
         for row in res:
             t = pattn.search(row[0])
             if t is None:
                 continue
-            t = t.group().replace("#","")
+            t = int(t.group()[-1])
             trans.add(t)
-    return list(trans)
+    return list(sorted(trans))
 
 def getVolts(db):
     '''
@@ -89,6 +89,8 @@ def getBuses(db):
             m[volt] = s
             s = []
     
+    for key in m:
+        m[key] = sorted(m[key])
     return m
 
 def getLines(db):
@@ -195,7 +197,7 @@ def getLineBus(db):
     
     l = getLines(db)
 
-    m = {}
+    l_b = {}
     b = []
     for data in res:
         line = p_line.search(data[0]).group()
@@ -205,15 +207,17 @@ def getLineBus(db):
         
         if line not in l:
             continue
-        if line in m:
-            if bus in m[line]:
+        if line in l_b:
+            if bus in l_b[line]:
                 continue
-            m[line].append(bus)
+            l_b[line].append(bus)
         else:
             b.append(bus)
-            m[line] = b
+            l_b[line] = b
             b = []
-    return m
+    for l in l_b:
+        l_b[l] = sorted(l_b[l])
+    return l,l_b
 
 if __name__=='__main__':
     import time
