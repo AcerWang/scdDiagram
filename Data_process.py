@@ -83,10 +83,10 @@ def getBuses(db):
         volt = bus[:2]
         volt = volt if volt in ['10','35','66'] else volt+'0'
         if volt in m:
-            m[volt].append(int(bus[-1]))
+            m[int(volt)].append(int(bus[-1]))
         else:
             s.append(int(bus[-1]))
-            m[volt] = s
+            m[int(volt)] = s
             s = []
     
     for key in m:
@@ -145,7 +145,9 @@ def getBusRelationship(db):
         
         name = name.group()[:2]
         if name not in ['10','35','66']:
-            name = name+'0'
+            name = int(name+'0')
+        else:
+            name = int(name)
         
         flag = '分段' if '分段' in desc else '母联'
 
@@ -224,7 +226,7 @@ if __name__=='__main__':
     start = time.clock()
     db = DataBase()
 
-    getRelation(db)
+    #getRelation(db)
     t = getTransformers(db)
     print(t)
     # v = getVolts(db)
