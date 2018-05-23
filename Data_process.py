@@ -81,12 +81,12 @@ def getBuses(db):
     s = []
     for bus in buses:
         volt = bus[:2]
-        volt = volt if volt in ['10','35','66'] else volt+'0'
+        volt = int(volt) if volt in ['10','35','66'] else int(volt+'0')
         if volt in m:
-            m[int(volt)].append(int(bus[-1]))
+            m[volt].append(int(bus[-1]))
         else:
             s.append(int(bus[-1]))
-            m[int(volt)] = s
+            m[volt] = s
             s = []
     
     for key in m:
@@ -165,7 +165,7 @@ def getBusRelationship(db):
             else:
                 desc[i] = dig_index.index(x)+1
                 i += 1
-
+        desc = sorted(desc)
         if name in info:
             if flag in info[name]:
                 if desc in info[name][flag]:
@@ -226,25 +226,21 @@ if __name__=='__main__':
     start = time.clock()
     db = DataBase()
 
-    #getRelation(db)
     t = getTransformers(db)
     print(t)
     # v = getVolts(db)
     b = getBuses(db)
     print(b)
-    l = getLines(db)
+    
+    # 线路，线路与母线关系
+    l,l_b = getLineBus(db)
     print(l)
-    m = getLineBus(db)
-    print(m)
-    l_b = getBusRelationship(db)
     print(l_b)
 
-    # jsonstr = conv2json(t,v,b,l,l_b)
+    # 母线间关系
+    b_b = getBusRelationship(db)
+    print(b_b)
 
-    # print(jsonstr)
-    # with open('res/data.json','w') as f:
-    #     f.write(jsonstr)
-    
     db.close_connection()
     end = time.clock()
     print('total time:',end-start,'s')
