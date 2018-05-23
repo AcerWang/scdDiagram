@@ -1,14 +1,16 @@
 from SCD_element import resolve
 from SCD_struct import resolve_struct
+from Data_process import getRelation
+from DBHelper import DataBase
 
 from multiprocessing.pool import Pool
-
+from multiprocessing import cpu_count
 
 def multi_task(file):
     
-    pool = Pool(4)
+    pool = Pool(cpu_count())
 
-    args = [(file,'IED'),(file,'AccessPoint'),(file,'LDevice'),(file,'LN','LDevice')]
+    args = [(file,'IED'),(file,'LDevice'),(file,'LN','LDevice'),(file,'ExtRef','LN')]
     
     for arg in args:
         pool.apply_async(resolve,args=arg)
@@ -18,7 +20,11 @@ def multi_task(file):
     pool.close()
 
     pool.join()
-
+    
+    db = DataBase()
+    getRelation(db)
+    db.close_connection()
+    
     print('done!')
 
 if __name__=='__main__':
