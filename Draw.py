@@ -16,6 +16,8 @@ class Drawer(object):
         self.lines = lines
         self.line_bus = line_bus
         self.bus_relation = bus_relation
+        self.high_bus = {}
+        self.mid_bus = {}
         self.svg = et.getroot().find('body/svg')
 
     def draw_transfomer(self):
@@ -43,6 +45,7 @@ class Drawer(object):
         '''
         self.draw_transfomer()
         self.draw_bus_union()
+        self.draw_bus_seg()
         self.et.write('index.html',encoding='utf-8')
         os.startfile('index.html')
 
@@ -69,7 +72,7 @@ class Drawer(object):
                 y1 += 150
         else:
             # 普通接线，不存在母联和分段的情况，母线单独放置对应每台变压器
-            if max_volt not in bus_relation:
+            if max_volt not in self.bus_relation:
                 x1, x2 = 50, 1050
                 seg = 0
                 n = len(self.buses[max_volt])
@@ -87,11 +90,11 @@ class Drawer(object):
                     x1 = x1 + seg + 50
                     x2 = x1 + seg
                     # 添加已画母线列表
-                
+            # 有母线连接关系    
             else:
-                if '母联' in bus_relation[max_volt]:
+                if '母联' in self.bus_relation[max_volt]:
                     # 直接并联两条母线
-                    if bus_relation[max_volt]['母联'] is None:
+                    if self.bus_relation[max_volt]['母联'] is None:
                         self.high_bus = {}
                         x1, x2, y1 = 50, 1050, 350
                         for i in self.buses[max_volt]:
@@ -103,7 +106,7 @@ class Drawer(object):
                         self.busUnion(x=x1+20,y=y1+40)
                     # 多组母联
                     else:
-                        bus_list = Algo.union_algo(bus_relation[max_volt]['母联'])
+                        bus_list = Algo.union_algo(self.bus_relation[max_volt]['母联'])
                         x1, x2, y1 = 50, 1050, 350
                         # 分组数
                         num_sep = len(bus_list)
@@ -143,7 +146,7 @@ class Drawer(object):
             return
 
         # 普通接线，不存在母联和分段的情况，母线单独放置对应每台变压器
-        if mid_volt not in bus_relation:
+        if mid_volt not in self.bus_relation:
             x1, x2 = 50, 1050
             seg = 0
             n = len(self.buses[mid_volt])
@@ -163,9 +166,9 @@ class Drawer(object):
                 x2 = x1 + seg
             
         else:
-            if '母联' in bus_relation[mid_volt]:
+            if '母联' in self.bus_relation[mid_volt]:
                 # 直接并联两条母线
-                if bus_relation[mid_volt]['母联'] is None:
+                if self.bus_relation[mid_volt]['母联'] is None:
                     # 用于保存已画线母线
                     self.mid_bus = {}
                     x1, x2, y1 = 50, 1050, 600
@@ -177,7 +180,7 @@ class Drawer(object):
                     self.busUnion(x=x1+20,y=y1,color='blue',href='#BusUnion-down')
                 # 多组母联
                 else:
-                    bus_list = Algo.union_algo(bus_relation[mid_volt]['母联'])
+                    bus_list = Algo.union_algo(self.bus_relation[mid_volt]['母联'])
                     x1, x2, y1 = 50, 1050, 600
                     # 分组数
                     num_sep = len(bus_list)
@@ -217,7 +220,7 @@ class Drawer(object):
             画分段开关及母线
         '''
         # 分段开关存在高压侧
-        if '分段' in self.bus_relation[self.high_volt]:
+        if self.high_volt in self.bus_relation and '分段' in self.bus_relation[self.high_volt]:
             # 默认二分段
             if self.bus_relation[self.high_volt]['分段'] is None:
                 self.high_bus = {}
@@ -229,7 +232,7 @@ class Drawer(object):
             # 有多分段的情况
             else:
                 # 分段组数
-                seg_len = len(bus_relation[self.high_volt]['分段'])
+                seg_len = len(self.bus_relation[self.high_volt]['分段'])
                 segs_total = []
                 for seg in self.bus_relation[self.high_volt]['分段']:
                     segs_total += seg
@@ -249,27 +252,83 @@ class Drawer(object):
                     seg = sorted(seg)
                     # 两段已经存在，直接画分段开关
                     if seg[0] in self.high_bus and seg[1] in self.high_bus:
-                        x = self.high_bus[seg[0]][1]
-                        y = self.high_bus[seg[0]][2]
-                        self.busSeg(x=x-10,y=y-20)
+                        x2 = self.high_bus[seg[0]][1]
+                        y1 = self.high_bus[seg[0]][2]
+                        self.busSeg(x=x2-25,y=y1-25)
                         continue
                     # 如果第二段不存在,画出母线段，再画分段
                     if seg[0] in self.high_bus and seg[1] not in self.high_bus:
-                        x1 = seg[0][0]
-                        x2 = seg[0][1]
-                        y1 = seg[1][2]
+                        x1 = self.high_bus[seg[0]][0]
+                        x2 = self.high_bus[seg[0]][1]
+                        y1 = self.high_bus[seg[1]][2]
                         self.singleBus(volt=self.high_volt,bus_no=seg[1],x1=x2+50,x2=2*x2-x1+50,y=y1)
-                        self.high_bus[seg[2]] = [x2+50,2*x2-x1+50,y1]
-                        self.busSeg(x=x1-10,y=y1-20)
+                        self.high_bus[seg[1]] = [x2+50,2*x2-x1+50,y1]
+                        self.busSeg(x=x2-25,y=y1-25)
                         continue
-                    # 如果两段都不存在，画出两段再画分段
+                    # 如果两段都不存在，画出两段再画分段开关
                     if seg[0] not in self.high_bus and seg[1] not in self.high_bus:
                         for i in seg:
                             self.singleBus(volt=self.high_volt,bus_no=i,x1=x1,x2=x2,y=y1)
                             self.high_bus[i] = [x1,x2,y1]
                             x1 = x2 + 50
                             x2 = x1 + part_len
-                        self.busSeg(self.high_bus[seg[0]][1]-10,y1-20)
+                        self.busSeg(self.high_bus[seg[0]][1]-25,y1-25)
+                        continue
+
+        # 分段开关存在中压侧
+        if self.mid_volt in self.bus_relation and '分段' in self.bus_relation[self.mid_volt] and self.mid_volt>100:
+            # 默认二分段
+            if self.bus_relation[self.mid_volt]['分段'] is None:
+                self.high_bus = {}
+                self.singleBus(self.mid_volt,bus_no=1,x1=50,x2=650,y=600)
+                self.high_bus[1] = [50,650,600]
+                self.singleBus(self.high_volt,bus_no=2,x1= 700,x2=1300,y=600)
+                self.high_bus[1] = [700,1300,600]
+                self.busSeg(x=640,y=580)
+            # 有多分段的情况
+            else:
+                # 分段组数
+                seg_len = len(bus_relation[self.mid_volt]['分段'])
+                segs_total = []
+                for seg in self.bus_relation[self.mid_volt]['分段']:
+                    segs_total += seg
+                segs_total = len(set(segs_total))
+                # 分组数比分段数少2，并联型分段
+                if segs_total-seg_len == 2:
+                    pass
+                # 串联型分段
+                x1,x2,part_len,y1 = 50,1050,1000,600
+                if segs_total-seg_len == 1:
+                    part_len = 1000
+                    for i in range(1,segs_total):
+                        part_len -= 400//i 
+                    x2 = x1+part_len
+
+                for seg in self.bus_relation[self.mid_volt]['分段']:
+                    seg = sorted(seg)
+                    # 两段已经存在，直接画分段开关
+                    if seg[0] in self.mid_bus and seg[1] in self.mid_bus:
+                        x = self.mid_bus[seg[0]][1]
+                        y = self.mid_bus[seg[0]][2]
+                        self.busSeg(x=x-25,y=y-25,color='blue')
+                        continue
+                    # 如果第二段不存在,画出母线段，再画分段
+                    if seg[0] in self.mid_bus and seg[1] not in self.mid_bus:
+                        x1 = self.mid_bus[seg[0]][0]
+                        x2 = self.mid_bus[seg[0]][1]
+                        y1 = self.mid_bus[seg[0]][2]
+                        self.singleBus(volt=self.mid_volt,bus_no=seg[1],x1=x2+50,x2=2*x2-x1+50,y=y1,color='blue')
+                        self.mid_bus[seg[1]] = [x2+50,2*x2-x1+50,y1]
+                        self.busSeg(x=x2-25,y=y1-25,color='blue')
+                        continue
+                    # 如果两段都不存在，画出两段再画分段开关
+                    if seg[0] not in self.mid_bus and seg[1] not in self.mid_bus:
+                        for i in seg:
+                            self.singleBus(volt=self.mid_volt,bus_no=i,x1=x1,x2=x2,y=y1,color='blue')
+                            self.mid_bus[i] = [x1,x2,y1]
+                            x1 = x2 + 50
+                            x2 = x1 + part_len
+                        self.busSeg(self.mid_bus[seg[0]][1]-25,y1-25,color='blue')
                         continue
 
     def singleBus(self, volt, bus_no=1, x1=50, x2=1050, y=350, color='red'):
@@ -323,7 +382,7 @@ if __name__ == '__main__':
     print(bus_relation)
     
     etree = ET.parse("base.html")
-    drawer = Drawer(et=etree,trans=trans,buses=buses)
+    drawer = Drawer(et=etree,trans=trans,buses=buses,bus_relation=bus_relation)
     drawer.draw()
     print('Down.')
     # print(buses)
