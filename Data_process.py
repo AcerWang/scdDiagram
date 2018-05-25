@@ -1,4 +1,5 @@
 from DBHelper import DataBase
+
 import re
 import json
 
@@ -197,7 +198,7 @@ def getLineBus(db):
     if res == []:
         return None
     
-    l = getLines(db)
+    lines = getLines(db)
 
     l_b = {}
     b = []
@@ -207,7 +208,7 @@ def getLineBus(db):
 
         bus = dig_index.index(bus)+1 if bus in dig_index else char_index.index(bus)+1
         
-        if line not in l:
+        if line not in lines:
             continue
         if line in l_b:
             if bus in l_b[line]:
@@ -219,7 +220,7 @@ def getLineBus(db):
             b = []
     for l in l_b:
         l_b[l] = sorted(l_b[l])
-    return l,l_b
+    return lines,l_b
 
 if __name__=='__main__':
     import time

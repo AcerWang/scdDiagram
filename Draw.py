@@ -2,10 +2,10 @@ import Data_process
 import DBHelper
 import Algo
 
-from collections import Counter
 import xml.etree.ElementTree as ET
 from xml.etree.ElementTree import Element
 import os
+from collections import defaultdict
 
 class Drawer(object):
     
@@ -16,10 +16,28 @@ class Drawer(object):
         self.lines = lines
         self.line_bus = line_bus
         self.bus_relation = bus_relation
+        
+        # 用于记录已画线的母线段
         self.high_bus = {}
         self.mid_bus = {}
+
+        # 用于记录已画线的线路-母线
+        self.bus_line_high = defaultdict(int)
+        self.bus_line_mid = defaultdict(int)
+
         self.svg = et.getroot().find('body/svg')
 
+    def draw(self):
+        '''
+            输出成html文件，并显示
+        '''
+        self.draw_transfomer()
+        self.draw_bus_union()
+        self.draw_bus_seg()
+        self.draw_line()
+        self.et.write('index.html',encoding='utf-8')
+        os.startfile('index.html')
+    
     def draw_transfomer(self):
         '''
             画变压器
@@ -38,16 +56,6 @@ class Drawer(object):
 
             self.svg.append(ele_t)
             self.svg.append(txt)
-
-    def draw(self):
-        '''
-            输出成html文件，并显示
-        '''
-        self.draw_transfomer()
-        self.draw_bus_union()
-        self.draw_bus_seg()
-        self.et.write('index.html',encoding='utf-8')
-        os.startfile('index.html')
 
     def draw_bus_union(self):
         '''
@@ -331,6 +339,76 @@ class Drawer(object):
                         self.busSeg(self.mid_bus[seg[0]][1]-25,y1-25,color='blue')
                         continue
 
+    def draw_line(self):
+        '''
+            画线路
+        '''
+        # 特殊情况，需要单独考虑
+        if self.line_bus is None:
+            return None
+        
+        # 有母线-线路关系
+        lines = sorted(self.line_bus)
+        for line in lines:
+            # 3/2 接线
+            if int(line[:3])>=500:
+                pass
+                continue
+            
+            # 除3/2以外的普通高压侧的接线方式
+            if int(line[:3])==self.high_volt:
+                name = self.lines[line]
+                buses = sorted(self.line_bus[line])
+                bus_num = len(buses)
+                x,y = 0,0
+                # 线路只在一条母线上
+                if bus_num == 1:
+                    x = self.high_bus[buses[0]][0] + 40*(self.bus_line_high[buses[0]]+1)
+                    y = self.high_bus[buses[0]][2]-190
+                    self.singleLine(line=line,name=name,x=x,y=y,href='#Line-Up-1')
+                    self.bus_line_high[buses[0]] += 1
+                
+                # 线路在两条母线上
+                else:
+                    x = self.high_bus[buses[0]][0] + 40*(self.bus_line_high[buses[0]]+1)
+                    y = self.high_bus[buses[0]][2]-230
+                    self.singleLine(line=line,name=name,x=x,y=y,href='#Line-Up-2')
+                    self.bus_line_high[buses[0]] += 1
+                continue
+            
+            # 普通的中压侧的接线方式
+            if int(line[:3])==self.mid_volt:
+                name = self.lines[line]
+                buses = sorted(self.line_bus[line])
+                bus_num = len(buses)
+                x,y = 0,0
+                # 线路只在一条母线上
+                if bus_num == 1:
+                    x = self.mid_bus[buses[0]][0] + 40*(self.bus_line_mid[buses[0]]+1)
+                    y = self.mid_bus[buses[0]][2]
+                    self.singleLine(line=line,name=name,x=x,y=y,href='#Line-Down-1')
+                    self.bus_line_mid[buses[0]] += 1
+                
+                # 线路在两条母线上
+                else:
+                    x = self.mid_bus[buses[0]][0] + 40*(self.bus_line_mid[buses[0]]+1)
+                    y = self.mid_bus[buses[0]][2]
+                    self.singleLine(line=line,name=name,x=x,y=y,href='#Line-Down-2')
+                    self.bus_line_mid[buses[0]] += 1
+                continue
+    
+    def singleLine(self,line='1',name='',x=0,y=0,color='red',href='#Line-Up-1'):
+        '''
+            画单一线路
+        '''
+        ele = Element('use')
+        ele.attrib = {'id':line, 'x':str(x), 'y':str(y), 'stroke':color, 'href':href}
+        txt = Element('text')
+        txt.attrib =  {'dy':"0", 'stroke':"black", 'stroke-width':"0.3", 'style':'writing-mode:tb;' , 'x':str(x+5) ,'y':str(y)}
+        txt.text = name
+        self.svg.append(ele)
+        self.svg.append(txt)
+
     def singleBus(self, volt, bus_no=1, x1=50, x2=1050, y=350, color='red'):
         '''
             画单一母线
@@ -361,9 +439,6 @@ class Drawer(object):
         self.svg.append(ele)
         pass
 
-    def draw_line(self,line):
-        pass
-
 if __name__ == '__main__':
 
 
@@ -378,11 +453,13 @@ if __name__ == '__main__':
     bus_relation = Data_process.getBusRelationship(db)
     db.close_connection()
 
-    print(buses)
-    print(bus_relation)
+    # print(buses)
+    # print(bus_relation)
+    # print(lines)
+    # print(line_bus)
     
     etree = ET.parse("base.html")
-    drawer = Drawer(et=etree,trans=trans,buses=buses,bus_relation=bus_relation)
+    drawer = Drawer(et=etree,trans=trans,buses=buses,lines=lines,line_bus=line_bus,bus_relation=bus_relation)
     drawer.draw()
     print('Down.')
     # print(buses)
