@@ -55,22 +55,19 @@
 				<circle cx="5" cy="5" fill="red" r="5" />
 			</symbol>
 			
-			<symbol height="10" id="Bus-h" stroke="red" width="800">
-				<text dy="0" stroke="black" stroke-width="0.5" x="0" y="10">III</text>
-				<line stroke-width="5" x1="20" x2="800" y1="5" y2="5" />
-			</symbol>
-			
-			<symbol height="500" id="Bus-v" stroke="red" width="10">
-				<line stroke-width="5" x1="5" x2="5" y1="0" y2="500" />
-			</symbol>
-
-			<symbol fill-opacity="0.0" height="100" id="BusUnion" stroke="red" width="50">
+			<symbol fill-opacity="0.0" height="100" id="BusUnion" width="50">
 				<path d="M5 0 L5 60 L15 60 M15 55 L15 65 M17 54 L25 60 L35 60" />
 				<rect height="10" width="20" x="35" y="55" />
 				<path d="M55 60 L65 60 M65 55 L65 65 M67 54 L75 60 L85 60 L85 40" />
 			</symbol>
 			
-			<symbol fill-opacity="0.0" height="40" id="BusSeg" stroke="red" width="100">
+			<symbol fill-opacity="0.0" height="100" id="BusUnion-down" width="50">
+				<path d="M5 30 L5 10 L15 10 M15 5 L15 15 M17 4 L25 10 L35 10" />
+				<rect height="10" width="20" x="35" y="5" />
+				<path d="M55 10 L65 10 M65 5 L65 15 M67 4 L75 10 L85 10 L85 70" />
+			</symbol>
+			
+			<symbol fill-opacity="0.0" height="40" id="BusSeg" width="100">
 					<path d="M5 25 L5 10 L15 10 M15 5 L15 15 M17 4 L25 10 L35 10" />
 					<rect height="10" width="20" x="35" y="5" />
 					<path d="M55 10 L65 10 M65 5 L65 15 M67 4 L75 10 L85 10 L85 25" />
@@ -84,24 +81,36 @@
 				<path d="M20 0 L20 55 M15 55 L25 55 M27 56 L20 65 L20 80 L0 80" />	
 			</symbol>
 
-			<symbol height="200" id="Line-Up" stroke="red" stroke-width="1" width="60">
-				<text dy="0" stroke="black" stroke-width="0.3" style="writing-mode: tb;" x="8" y="0">110kV巴复二线264</text>
+			<symbol height="200" id="Line-Up-1" stroke="red" stroke-width="1" width="60">
 				<line x1="20" x2="20" y1="0" y2="80" />
 				<use href="#Isolator-v" x="10" y="80" />
 				<use href="#Breaker-v" x="10" y="120" />
 				<use href="#Isolator-v" x="10" y="150" />
-				<use display="" href="#Line-Union-up" x="20" y="145" />
+			</symbol>
+			
+			<symbol height="200" id="Line-Up-2" stroke="red" stroke-width="1" width="60">
+				<line x1="20" x2="20" y1="0" y2="80" />
+				<use href="#Isolator-v" x="10" y="80" />
+				<use href="#Breaker-v" x="10" y="120" />
+				<use href="#Isolator-v" x="10" y="150" />
+				<use href="#Line-Union-up" x="20" y="145" />
 			</symbol>
 
-			<symbol height="200" id="Line-Down" stroke="red" stroke-width="1" width="60">
-				<use display="" href="#Line-Union-down" x="20" y="0" />
+			<symbol height="200" id="Line-Down-1" stroke="red" stroke-width="1" width="60">
 				<use href="#Isolator-v" x="10" y="40" />
 				<use href="#Breaker-v" x="10" y="80" />
 				<use href="#Isolator-v" x="10" y="110" />
 				<line x1="20" x2="20" y1="150" y2="240" />
-				<text dy="0" stroke="black" stroke-width="0.3" style="writing-mode: tb;" x="8" y="150">110kV巴复二线264</text>
 			</symbol>
-		
+			
+			<symbol height="200" id="Line-Down-2" stroke="red" stroke-width="1" width="60">
+				<use href="#Line-Union-down" x="20" y="0" />
+				<use href="#Isolator-v" x="10" y="40" />
+				<use href="#Breaker-v" x="10" y="80" />
+				<use href="#Isolator-v" x="10" y="110" />
+				<line x1="20" x2="20" y1="150" y2="240" />
+			</symbol>
+
 		</svg>
 	</body>
 </html>
