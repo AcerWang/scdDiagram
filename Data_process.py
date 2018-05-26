@@ -121,6 +121,9 @@ def getRelation(db):
     '''
         获得线路引用关系
     '''
+    sql = '''drop table if exists tmp'''
+    db.select(sql)
+    
     sql = '''CREATE TABLE tmp as SELECT IEDTree.IED as Line,ExtRef.iedName as Ref_To,ExtRef.lnClass,ExtRef.lnInst,ExtRef.ldInst,ExtRef.prefix ,ExtRef.doName 
             from LN,ExtRef INNER JOIN IEDTree on LN.ldevice_id=IEDTree.LD_id where LN.ldevice_id in 
             ( SELECT IEDTree.LD_id FROM IEDTree  WHERE  IEDTree.IED LIKE "M%L%" AND IEDTree.AccessPoint LIKE "M%" ) and LN.lnClass="LLN0"
