@@ -27,7 +27,7 @@ class Drawer(object):
 
         # 用于记录高压3/2断路器数的信息(除主变间隔对应的外)
         self.num_high_breaker = 0
-        # 用于记录断路器位置信息，初始位置20
+        # 用于记录断路器位置信息，初始位置横坐标x=20
         self.high_breaker = [20,]
         
         # 记录变压器的信息
@@ -44,6 +44,7 @@ class Drawer(object):
         self.draw_bus_union()
         self.draw_bus_seg()
         self.draw_line()
+        self.draw_join()
         self.et.write('index.html',encoding='utf-8')
         os.startfile('index.html')
     
@@ -100,8 +101,7 @@ class Drawer(object):
                 if n == 3:
                     x2 = 450
                     seg = 400
-                # 用于保存画线母线
-                self.high_bus = {}
+                
                 for i in self.buses[max_volt]:
                     self.singleBus(max_volt,bus_no=i,x1=x1,x2=x2,y=600)
                     self.high_bus[i] = [x1,x2,600]
@@ -113,7 +113,6 @@ class Drawer(object):
                 if '母联' in self.bus_relation[max_volt]:
                     # 直接并联两条母线
                     if self.bus_relation[max_volt]['母联'] is None:
-                        self.high_bus = {}
                         x1, x2, y1 = 50, 1050, 350
                         for i in self.buses[max_volt]:
                             self.singleBus(max_volt,i,x1=x1,x2=x2,y=y1)
@@ -137,7 +136,6 @@ class Drawer(object):
                         # 下面的单独一段母线长度
                         singleLen = x2-x1
                         
-                        self.high_bus = {}
                         for bus in bus_list:
                             # 母联下面的一条母线
                             self.singleBus(max_volt,bus[0],x1=x1,x2=x2,y=y1)
@@ -174,8 +172,7 @@ class Drawer(object):
             if n == 3:
                 x2 = 450
                 seg = 400
-            # 用于保存已经画线母线
-            self.mid_bus = {}
+            
             for i in self.buses[mid_volt]:
                 self.singleBus(mid_volt,bus_no=i,x1=x1,x2=x2,y=600)
                 # 添加已画母线列表
@@ -187,8 +184,6 @@ class Drawer(object):
             if '母联' in self.bus_relation[mid_volt]:
                 # 直接并联两条母线
                 if self.bus_relation[mid_volt]['母联'] is None:
-                    # 用于保存已画线母线
-                    self.mid_bus = {}
                     x1, x2, y1 = 50, 1050, 600
                     for i in self.buses[mid_volt]:
                         self.singleBus(mid_volt,i,x1=x1,x2=x2,y=y1,color='blue')
@@ -210,8 +205,7 @@ class Drawer(object):
                         x2 = 450
                     # 下面的单独一段母线长度
                     singleLen = x2-x1
-                    # 保存已输出的母线段
-                    self.mid_bus = {}
+                    
                     for bus in bus_list:
                         # 母联上面的一条母线
                         self.singleBus(mid_volt,bus[0],x1=x1,x2=x2,y=y1,color='blue')
@@ -440,7 +434,50 @@ class Drawer(object):
         '''
             画主变到母线的连接线
         '''
-        pass
+        # 高压侧
+        if self.high_volt>=500:
+            pass
+        else:
+            if '母联' in self.bus_relation[self.high_volt]:
+                # 简单的两条并联母线，各台主变直接全接到这两条线上
+                if self.bus_relation[self.high_volt]['母联'] is None or len(self.bus_relation[self.high_volt]['母联'])==1:
+                    y= self.high_bus[1][2]
+                    for t in self.t:
+                        x = self.t[t][0]
+                        self.joinTrans(x=x,y=y)
+                
+                # 多组母联的情况
+                else:
+                    i = 0
+                    for bus in self.bus_relation[self.high_volt]['母联']:
+                        x = self.t[self.trans[i]][0]
+                        y = self.high_bus[bus[0]][2]
+                        i += 1
+                        self.joinTrans(x=x,y=y)
+
+            else:
+                pass
+        # 中压侧
+        if self.mid_volt<100:
+            pass
+        else:
+            if '母联' in self.bus_relation[self.mid_volt]:
+                # 简单的两条并联母线，各台主变直接全接到这两条线上
+                if self.bus_relation[self.mid_volt]['母联'] is None or len(self.bus_relation[self.mid_volt]['母联'])==1:
+                    y= self.mid_bus[1][2]
+                    for t in self.t:
+                        x = self.t[t][0]
+                        self.joinTrans(x=x,y=y,href='#Join-D-2')
+                # 多组母联的情况
+                else:
+                    i = 0
+                    for bus in self.bus_relation[self.mid_volt]['母联']:
+                        x = self.t[self.trans[i]][0]
+                        y = self.mid_bus[bus[0]][2] - 150
+                        i += 1
+                        self.joinTrans(x=x,y=y,href='#Join-D-2')
+            else:
+                pass
 
     def one_and_half_breaker(self,x=100,y=200):
         '''
@@ -448,6 +485,14 @@ class Drawer(object):
         '''
         ele = Element('use')
         ele.attrib = {'x':str(x), 'y':str(y),'href':'#Breaker-3'}
+        self.svg.append(ele)
+
+    def joinTrans(self,x=0,y=0,href="#"):
+        '''
+            画主变到母线的连接线
+        '''
+        ele = Element('use')
+        ele.attrib = {'x':str(x), 'y':str(y), 'href':href}
         self.svg.append(ele)
 
     def singleLine(self,line='1',name=None,x=0,y=0,color='red',href='#Line-Up-1'):
@@ -513,13 +558,11 @@ if __name__ == '__main__':
     db.close_connection()
 
     # print(buses)
-    # print(bus_relation)
+    print(bus_relation)
     # print(lines)
     # print(line_bus)
     
     etree = ET.parse("base.html")
     drawer = Drawer(et=etree,trans=trans,buses=buses,lines=lines,line_bus=line_bus,bus_relation=bus_relation)
     drawer.draw()
-    print('Down.')
-    # print(buses)
-    # print(bus_relation)
+    print('Done.')
