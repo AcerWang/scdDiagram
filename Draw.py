@@ -25,6 +25,15 @@ class Drawer(object):
         self.bus_line_high = defaultdict(int)
         self.bus_line_mid = defaultdict(int)
 
+        # 用于记录高压3/2断路器数的信息(除主变间隔对应的外)
+        self.num_high_breaker = 0
+        # 用于记录断路器位置信息，初始位置20
+        self.high_breaker = [20,]
+        
+        # 记录变压器的信息
+        self.t = {}
+
+        # 获取模板文件的svg节点
         self.svg = et.getroot().find('body/svg')
 
     def draw(self):
@@ -53,9 +62,10 @@ class Drawer(object):
             txt = Element('text')
             txt.attrib =  {'dy':"0", 'stroke':"black", 'stroke-width':"0.5", 'x':str(x-20) ,'y':str(y+25)}
             txt.text = "T"+str(t)
-
             self.svg.append(ele_t)
             self.svg.append(txt)
+            # 记录变压器信息
+            self.t[t] = [x,y]
 
     def draw_bus_union(self):
         '''
@@ -351,12 +361,41 @@ class Drawer(object):
         lines = sorted(self.line_bus)
         for line in lines:
             # 3/2 接线
-            if int(line[:3])>=500:
-                pass
+            if int(line[:2]+'0')>=500:
+                # 对应变压器的线路
+                if int(line[-2:]) in self.t:
+                    x = self.t[int(line[-1])][0] - 15
+                    y = self.high_bus[1][2]
+                    self.one_and_half_breaker(x=x,y=y)
+                    self.singleLine(line=line,name=self.lines[line],x=x-10,y=y-150,href='#Line-3/2-L')
+                    self.singleLine(line="To_"+line[-1],x=x+15,y=y+95,href="#Line-to-Trans")
+                
+                # 其他线路，画线和画断路器
+                else:
+                    if self.num_high_breaker%2 == 0:
+                        last_x = self.high_breaker[-1]
+                        x = last_x + 40
+
+                        # 比较断路器位置到主变对应断路器位置的距离
+                        for t in self.trans:
+                            if self.t[t][1]-x<40:
+                                x = self.t[t][1]+40
+                                break
+                        y = self.high_bus[1][2]
+                        self.one_and_half_breaker(x=x,y=y)
+                        # 把对应的断路器横坐标记录下来
+                        self.high_breaker.append(x)
+                        self.singleLine(line=line,name=self.lines[line],x=x-10,y=y-150,href='#Line-3/2-L')
+                    else:
+                        x = self.high_breaker[-1]
+                        y = self.high_bus[1][2]
+                        self.singleLine(line=line,name=self.lines[line],x=x+10,y=y-150,href='#Line-3/2-R')
+                    self.num_high_breaker += 1
+
                 continue
             
             # 除3/2以外的普通高压侧的接线方式
-            if int(line[:3])==self.high_volt:
+            if int(line[:2]+'0')==self.high_volt:
                 name = self.lines[line]
                 buses = sorted(self.line_bus[line])
                 bus_num = len(buses)
@@ -377,7 +416,7 @@ class Drawer(object):
                 continue
             
             # 普通的中压侧的接线方式
-            if int(line[:3])==self.mid_volt:
+            if int(line[:2]+'0')==self.mid_volt:
                 name = self.lines[line]
                 buses = sorted(self.line_bus[line])
                 bus_num = len(buses)
@@ -385,30 +424,50 @@ class Drawer(object):
                 # 线路只在一条母线上
                 if bus_num == 1:
                     x = self.mid_bus[buses[0]][0] + 40*(self.bus_line_mid[buses[0]]+1)
-                    y = self.mid_bus[buses[0]][2]
-                    self.singleLine(line=line,name=name,x=x,y=y,href='#Line-Down-1')
+                    y = self.mid_bus[buses[0]][2]-40
+                    self.singleLine(line=line,name=name,color='blue',x=x,y=y,href='#Line-Down-1')
                     self.bus_line_mid[buses[0]] += 1
-                
+
                 # 线路在两条母线上
                 else:
                     x = self.mid_bus[buses[0]][0] + 40*(self.bus_line_mid[buses[0]]+1)
                     y = self.mid_bus[buses[0]][2]
-                    self.singleLine(line=line,name=name,x=x,y=y,href='#Line-Down-2')
+                    self.singleLine(line=line,name=name,color='blue',x=x,y=y,href='#Line-Down-2')
                     self.bus_line_mid[buses[0]] += 1
                 continue
     
-    def singleLine(self,line='1',name='',x=0,y=0,color='red',href='#Line-Up-1'):
+    def draw_join(self):
+        '''
+            画主变到母线的连接线
+        '''
+        pass
+
+    def one_and_half_breaker(self,x=100,y=200):
+        '''
+            画3/2接线
+        '''
+        ele = Element('use')
+        ele.attrib = {'x':str(x), 'y':str(y),'href':'#Breaker-3'}
+        self.svg.append(ele)
+
+    def singleLine(self,line='1',name=None,x=0,y=0,color='red',href='#Line-Up-1'):
         '''
             画单一线路
         '''
         ele = Element('use')
         ele.attrib = {'id':line, 'x':str(x), 'y':str(y), 'stroke':color, 'href':href}
-        txt = Element('text')
-        txt.attrib =  {'dy':"0", 'stroke':"black", 'stroke-width':"0.3", 'style':'writing-mode:tb;' , 'x':str(x+5) ,'y':str(y)}
-        txt.text = name
+        if name is not None:
+            txt = Element('text')
+            if 'Up' in href:
+                txt.attrib =  {'dy':"0", 'stroke':"black", 'stroke-width':"0.3", 'style':'writing-mode:tb;' , 'x':str(x+5) ,'y':str(y)}
+            elif 'Down' in href:
+                txt.attrib =  {'dy':"0", 'stroke':"black", 'stroke-width':"0.3", 'style':'writing-mode:tb;' , 'x':str(x+5) ,'y':str(y+140)}
+            else:
+                txt.attrib =  {'dy':"0", 'stroke':"black", 'stroke-width':"0.3", 'style':'writing-mode:tb;' , 'x':str(x-5) ,'y':str(y)}
+            txt.text = name
+            self.svg.append(txt)
         self.svg.append(ele)
-        self.svg.append(txt)
-
+    
     def singleBus(self, volt, bus_no=1, x1=50, x2=1050, y=350, color='red'):
         '''
             画单一母线
