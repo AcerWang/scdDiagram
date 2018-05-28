@@ -186,14 +186,14 @@ def getBusRelationship(db):
             v = []
     return info
     
-def getLineBus(db):
+def getLineBus(db,bus_relation):
     '''
         获得线路与母线关系
     '''
     p_bus = re.compile(r'[1-9]|[IVX]+')
     p_line = re.compile(r'\d{3,4}')
 
-    sql = '''select DISTINCT tmp.Line,LN.desc from tmp 
+    sql = '''select DISTINCT tmp.Line,LN.desc,tmp.Ref_To from tmp 
             INNER JOIN LN on LN.inst=tmp.lnInst and LN.lnClass=tmp.lnClass 
             where LN.ldevice_id = (select IEDTree.LD_id FROM IEDTree where IEDTree.IED=tmp.Ref_To and IEDTree.LDevice=tmp.ldInst) and tmp.Ref_To like "M%"'''
     res = db.select(sql)
@@ -207,22 +207,38 @@ def getLineBus(db):
     b = []
     for data in res:
         line = p_line.search(data[0]).group()
+        if line not in lines:
+            continue
+        
         bus = p_bus.search(data[1])
         if bus is None:
             continue
-        bus = bus.group()
-        bus = dig_index.index(bus)+1 if bus in dig_index else char_index.index(bus)+1
         
-        if line not in lines:
-            continue
-        if line in l_b:
-            if bus in l_b[line]:
-                continue
-            l_b[line].append(bus)
+        bus = bus.group()
+        # ref to merge unit
+        ref_to = p_line.search(data[2]).group()
+        ref_volt = int(ref_to[:2]+'0')
+        
+        if ref_volt not in bus_relation or bus_relation[ref_volt] is None:
+            bus = dig_index.index(bus)+1 if bus in dig_index else char_index.index(bus)+1
         else:
-            b.append(bus)
-            l_b[line] = b
-            b = []
+            if int(ref_to[-2:])<10:
+                bus = dig_index.index(bus)+1+(int(ref_to[-1])-1)*2 if bus in dig_index else char_index.index(bus)+1+(int(ref_to[-1])-1)*2
+            else:
+                bus = list(map(int,ref_to[-2:]))
+    
+        if line in l_b:
+            if type(bus)==list:
+                continue
+            elif bus in l_b[line]:
+                continue
+            else:
+                l_b[line].append(bus)
+        else:
+            if type(bus)==list:
+                l_b[line] = bus
+            else:
+                l_b[line] = [bus,]
     for l in l_b:
         l_b[l] = sorted(l_b[l])
     return lines,l_b
