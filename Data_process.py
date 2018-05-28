@@ -160,7 +160,7 @@ def getBusRelationship(db):
             info[name] = {flag:None}
             continue
         
-        desc = desc.group().split('-') if '-' in desc.group() else list(desc.group()[-2])
+        desc = desc.group().split('-') if '-' in desc.group() else list(desc.group()[-2:])
         i = 0
         for x in desc:
             if x in char_index:
@@ -202,13 +202,15 @@ def getLineBus(db):
         return None
     
     lines = getLines(db)
-
+    
     l_b = {}
     b = []
     for data in res:
         line = p_line.search(data[0]).group()
-        bus = p_bus.search(data[1]).group()
-
+        bus = p_bus.search(data[1])
+        if bus is None:
+            continue
+        bus = bus.group()
         bus = dig_index.index(bus)+1 if bus in dig_index else char_index.index(bus)+1
         
         if line not in lines:

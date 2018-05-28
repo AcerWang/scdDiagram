@@ -351,11 +351,13 @@ class Drawer(object):
         
         # 有母线-线路关系
         lines = sorted(self.line_bus)
+        one_half_trans = []
         for line in lines:
             # 3/2 接线
             if int(line[:2]+'0')>=500:
                 # 对应变压器的线路
                 if int(line[-2:]) in self.t:
+                    one_half_trans.append(int(line[-1]))
                     x = self.t[int(line[-1])][0] - 15
                     y = self.high_bus[1][2]
                     self.one_and_half_breaker(x=x,y=y)
@@ -366,7 +368,7 @@ class Drawer(object):
                 else:
                     if self.num_high_breaker%2 == 0:
                         last_x = self.high_breaker[-1]
-                        x = last_x + 40
+                        x = last_x + 60
 
                         # 比较断路器位置到主变对应断路器位置的距离
                         for t in self.trans:
@@ -427,7 +429,14 @@ class Drawer(object):
                     self.singleLine(line=line,name=name,color='blue',x=x,y=y,href='#Line-Down-2')
                     self.bus_line_mid[buses[0]] += 1
                 continue
-    
+        one_half_trans = sorted(one_half_trans)
+        if self.high_volt>=500 and one_half_trans == []:
+            for i in self.t:
+                x = self.t[i][0] - 15
+                y = self.high_bus[1][2]
+                self.one_and_half_breaker(x=x,y=y)
+                self.singleLine(line="To_"+line[-1],x=x+15,y=y+95,href="#Line-to-Trans")
+
     def draw_join(self):
         '''
             画主变到母线的连接线
@@ -562,6 +571,8 @@ class Drawer(object):
                 txt.attrib =  {'dy':"0", 'stroke':"black", 'stroke-width':"0.3", 'style':'writing-mode:tb;' , 'x':str(x+5) ,'y':str(y)}
             elif 'Down' in href:
                 txt.attrib =  {'dy':"0", 'stroke':"black", 'stroke-width':"0.3", 'style':'writing-mode:tb;' , 'x':str(x+5) ,'y':str(y+140)}
+            elif '#Line-3/2-R'==href:
+                txt.attrib =  {'dy':"0", 'stroke':"black", 'stroke-width':"0.3", 'style':'writing-mode:tb;' , 'x':str(x+15) ,'y':str(y)}
             else:
                 txt.attrib =  {'dy':"0", 'stroke':"black", 'stroke-width':"0.3", 'style':'writing-mode:tb;' , 'x':str(x-5) ,'y':str(y)}
             txt.text = name
@@ -610,11 +621,13 @@ if __name__ == '__main__':
     lines, line_bus = Data_process.getLineBus(db)
     # 获得母线连接关系
     bus_relation = Data_process.getBusRelationship(db)
+
     db.close_connection()
 
+    # print(trans)
     # print(buses)
     # print(bus_relation)
-    # print(lines)
+    print(lines)
     # print(line_bus)
     
     etree = ET.parse("base.html")

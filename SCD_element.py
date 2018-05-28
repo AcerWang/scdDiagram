@@ -42,10 +42,10 @@ def resolve(scd_file,target,parent=None):
                     attr.append(ele.get(field))
                 data.append(tuple(attr))
                 ele.clear()
-                #for large data, push into database per 10000 items
-                if target_no%10000 == 0:
-                    db.insert(insert_sql,data)
-                    data = []   
+                # for large data, push into database per 10000 items
+                # if target_no%100000 == 0:
+                #     db.insert(insert_sql,data)
+                #     data = []   
             else:
                 ele.clear()
     
@@ -103,10 +103,11 @@ def resolve(scd_file,target,parent=None):
                         attrs.append(ele.get(field))
 
                 data.append(tuple(attrs))
-                    #for large data, push into database per 10000 items
-                if target_no%100000 == 0:
-                    db.insert(insert_sql,data)
-                    data = []       
+                # for large data, push into database per 10000 items
+                # if target_no%100000 == 0:
+                #     db.insert(insert_sql,data)
+                #     data = []       
+    
     db.insert(insert_sql,data)
     db.close_connection()
 
@@ -115,7 +116,7 @@ def resolve(scd_file,target,parent=None):
 if __name__ == '__main__':
     import time
     start = time.clock()
-    resolve('./scd/ZTB.scd','DOI','LN')
+    resolve('./scd/STHB.scd','DOI','LN')
     end = time.clock()
 
     print("程序总运行时间：",end-start,"s")

@@ -54,5 +54,13 @@ class DataBase(object):
 		if res is not None:
 			return res
 		else:
-			print("无可用数据")
+			# print("无可用数据")
 			return None
+	def delete(self,table):
+		try:
+			self.cursor.execute('delete from '+table)
+			self.conn.commit()
+			res = self.cursor.rowcount
+		except Exception as e:
+			print(e)
+		print('data:',res)

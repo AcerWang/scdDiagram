@@ -7,7 +7,7 @@ from multiprocessing.pool import Pool
 from multiprocessing import cpu_count
 
 def multi_task(file):
-    
+
     pool = Pool(cpu_count())
 
     args = [(file,'IED'),(file,'LDevice'),(file,'LN','LDevice'),(file,'ExtRef','LN')]
@@ -30,6 +30,17 @@ def multi_task(file):
 if __name__=='__main__':
     import time
     start = time.clock()
-    multi_task('scd/ZTB.scd')
+    
+    db = DataBase()
+    
+    db.delete('IEDTree')
+    db.delete('IED')
+    db.delete('LDevice')
+    db.delete('LN')
+    db.delete('ExtRef')
+    
+    db.close_connection()
+
+    multi_task('scd/BZB.scd')
     end = time.clock()
     print('total time:',end-start,'s')

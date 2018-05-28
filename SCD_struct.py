@@ -41,6 +41,7 @@ def resolve_struct(file_name):
             continue
 
     db = DataBase()
+
     db.insert(sql,data)
     db.close_connection()
     print('total records:',no_ld)
