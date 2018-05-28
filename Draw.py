@@ -615,20 +615,20 @@ if __name__ == '__main__':
     db = DBHelper.DataBase()
     # 获得主变信息
     trans = Data_process.getTransformers(db)
+    # 获得母线连接关系
+    bus_relation = Data_process.getBusRelationship(db)
     # 获得母线信息
     buses = Data_process.getBuses(db)
     # 获得[线路信息]和[线路-母线]连接关系
-    lines, line_bus = Data_process.getLineBus(db)
-    # 获得母线连接关系
-    bus_relation = Data_process.getBusRelationship(db)
+    lines, line_bus = Data_process.getLineBus(db,bus_relation)
 
     db.close_connection()
 
     # print(trans)
     # print(buses)
-    # print(bus_relation)
-    print(lines)
-    # print(line_bus)
+    print(bus_relation)
+    # print(lines)
+    print(line_bus)
     
     etree = ET.parse("base.html")
     drawer = Drawer(et=etree,trans=trans,buses=buses,lines=lines,line_bus=line_bus,bus_relation=bus_relation)
