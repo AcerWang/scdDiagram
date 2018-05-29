@@ -197,14 +197,14 @@ def getLineBus(db,bus_relation):
             INNER JOIN LN on LN.inst=tmp.lnInst and LN.lnClass=tmp.lnClass 
             where LN.ldevice_id = (select IEDTree.LD_id FROM IEDTree where IEDTree.IED=tmp.Ref_To and IEDTree.LDevice=tmp.ldInst) and tmp.Ref_To like "M%"'''
     res = db.select(sql)
-    
-    if res == []:
-        return None
-    
     lines = getLines(db)
     
+    if res == []:
+        return lines,{}
+    
+    
     l_b = {}
-    b = []
+    
     for data in res:
         line = p_line.search(data[0]).group()
         if line not in lines:

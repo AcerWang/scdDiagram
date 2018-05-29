@@ -103,16 +103,18 @@ class Drawer(object):
                     seg = 400
                 
                 for i in self.buses[max_volt]:
-                    self.singleBus(max_volt,bus_no=i,x1=x1,x2=x2,y=600)
-                    self.high_bus[i] = [x1,x2,600]
+                    self.singleBus(max_volt,bus_no=i,x1=x1,x2=x2,y=350)
+                    # 添加已画母线列表
+                    self.high_bus[i] = [x1,x2,350]
                     x1 = x1 + seg + 50
                     x2 = x1 + seg
-                    # 添加已画母线列表
             # 有母线连接关系    
             else:
                 if '母联' in self.bus_relation[max_volt]:
                     # 直接并联两条母线
                     if self.bus_relation[max_volt]['母联'] is None:
+                        if len(self.buses[max_volt])==1:
+                            self.buses[max_volt].append(self.buses[max_volt][0]+1)
                         x1, x2, y1 = 50, 1250, 350
                         for i in self.buses[max_volt]:
                             self.singleBus(max_volt,i,x1=x1,x2=x2,y=y1)
@@ -184,13 +186,15 @@ class Drawer(object):
             if '母联' in self.bus_relation[mid_volt]:
                 # 直接并联两条母线
                 if self.bus_relation[mid_volt]['母联'] is None:
+                    if len(self.buses[mid_volt])==1:
+                            self.buses[mid_volt].append(self.buses[mid_volt][0]+1)
                     x1, x2, y1 = 50, 1250, 600
                     for i in self.buses[mid_volt]:
                         self.singleBus(mid_volt,i,x1=x1,x2=x2,y=y1,color='blue')
                         # 添加到已输出的列表中
                         self.mid_bus[i] = [x1,x2,y1]
                         y1 += 40
-                    self.busUnion(x=x1+20,y=y1,color='blue',href='#BusUnion-down')
+                    self.busUnion(x=x1+20,y=570,color='blue',href='#BusUnion-down')
                 # 多组母联
                 else:
                     bus_list = Algo.union_algo(self.bus_relation[mid_volt]['母联'][:])
@@ -346,9 +350,31 @@ class Drawer(object):
             画线路
         '''
         # 特殊情况，需要单独考虑
-        if self.line_bus is None:
-            return None
-        
+        if self.line_bus =={}:
+            if self.high_volt>=500:
+                pass
+            else:
+                
+                i = 1 if len(self.high_bus)==1 else 2
+                for line in self.lines:
+                    if int(line[:2]+'0')==self.high_volt:
+                        name = self.lines[line]
+                        x = self.high_bus[i][0] + 40*(self.bus_line_high[i]+1)
+                        y = self.high_bus[i][2]-190
+                        self.singleLine(line=line,name=name,x=x,y=y,href='#Line-Up-'+str(i))
+                        self.bus_line_high[i] += 1
+            if self.mid_volt<=100:
+                pass
+            else:
+                i = 1 if len(self.mid_bus)==1 else 2
+                for line in self.lines:
+                    if int(line[:2]+'0')==self.mid_volt and len(line)==4:
+                        name = self.lines[line]
+                        x = self.mid_bus[i][0] + 40*(self.bus_line_mid[i]+1)
+                        y = self.mid_bus[i][2]-40
+                        self.singleLine(line=line,name=name,x=x,y=y,href='#Line-Down-'+str(i),color='blue')
+                        self.bus_line_mid[i] += 1
+            
         # 有母线-线路关系
         lines = sorted(self.line_bus)
         one_half_trans = []
@@ -394,6 +420,7 @@ class Drawer(object):
                 buses = sorted(self.line_bus[line])
                 bus_num = len(buses)
                 x,y = 0,0
+
                 # 线路只在一条母线上
                 if bus_num == 1:
                     x = self.high_bus[buses[0]][0] + 40*(self.bus_line_high[buses[0]]+1)
@@ -445,7 +472,7 @@ class Drawer(object):
         if self.high_volt>=500:
             pass
         else:
-            if '母联' in self.bus_relation[self.high_volt]:
+            if self.high_volt in self.bus_relation and '母联' in self.bus_relation[self.high_volt]:
                 # 简单的两条并联母线，各台主变直接全接到这两条线上
                 if self.bus_relation[self.high_volt]['母联'] is None or len(self.bus_relation[self.high_volt]['母联'])==1:
                     y= self.high_bus[1][2] - 42
@@ -467,13 +494,13 @@ class Drawer(object):
                         self.path([str(t_x),str(t_y)],[str(x+20),str(y)],color='red')
                         i += 1
             else:
-                # 只有一段母线
+                # 只有一段或多段母线
                 if len(self.buses[self.high_volt])==1:
-                    y = self.mid_bus[self.buses[self.high_volt][0]][2]
+                    y = self.high_bus[self.buses[self.high_volt][0]][2]
                     for t in self.t:
                         x = self.t[t][0]
                         self.joinTrans(x=x,y=y,href='#Join-U-1')
-            # 每段母线接到对应的主变上
+                # 每段母线接到对应的主变上
                 else:
                     for t in self.trans:
                         x1 = self.high_bus[t][0]
@@ -492,9 +519,10 @@ class Drawer(object):
             if '母联' in self.bus_relation[self.mid_volt]:
                 # 简单的两条并联母线，各台主变直接全接到这两条线上
                 if self.bus_relation[self.mid_volt]['母联'] is None or len(self.bus_relation[self.mid_volt]['母联'])==1:
-                    y= self.mid_bus[1][2]
+                    y= self.mid_bus[1][2] - 110
                     for t in self.t:
                         x = self.t[t][0]
+                        
                         self.joinTrans(x=x,y=y,href='#Join-D-2')
                 # 多组母联的情况
                 else:
@@ -621,14 +649,14 @@ if __name__ == '__main__':
     buses = Data_process.getBuses(db)
     # 获得[线路信息]和[线路-母线]连接关系
     lines, line_bus = Data_process.getLineBus(db,bus_relation)
-
     db.close_connection()
 
+
     # print(trans)
-    # print(buses)
     print(bus_relation)
-    # print(lines)
+    print(lines)
     print(line_bus)
+    print(buses)
     
     etree = ET.parse("base.html")
     drawer = Drawer(et=etree,trans=trans,buses=buses,lines=lines,line_bus=line_bus,bus_relation=bus_relation)
