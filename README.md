@@ -1,4 +1,5 @@
-# scdDiagram
-Resolve substation scd file and draw primary diagram automatically.
-## A simple result for this project, demonsrate it's available! In future, I'll complete this project for more functionalities.
+# 通过SCD文件画出一次接线的结构
+解析智能变电站SCD文件，通过文件所给的IED信息，获取一次设备的连接关系，并最终画出主接线图。
+> 本项目为一个原型系统，旨在证明解析的可行性，还存在一些不足，后期会完善更多功能。
+### 一个解析的结果，接线结构和所给的CAD图上的连线方式一致，证明该解析的正确性，后期会继续完善本项目提供能多功能。
 ![](demo.png)
