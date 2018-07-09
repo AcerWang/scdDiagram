@@ -11,7 +11,8 @@ namespace test
     {
         const string xml_file_path = "ZTB.scd";
         static private List<string[]> IEDsInfo = new List<string[]>();
-        static private XmlDocument xmlDoc = new XmlDocument();
+        static private List<XmlElement> IEDList = new List<XmlElement>();
+        static private XmlNamespaceManager nsmgr;
 
         static void Main(string[] args)
         {
@@ -20,16 +21,18 @@ namespace test
             
             try
             {
+                XmlDocument xmlDoc = new XmlDocument();
                 xmlDoc.Load(xml_file_path);
-
+                 nsmgr = new XmlNamespaceManager(xmlDoc.NameTable);
+                 nsmgr.AddNamespace("ns", "http://www.iec.ch/61850/2003/SCL");
                 GetIEDsInfo(xmlDoc);
 
                 // GetTransformers();
                 // GetBuses();
                 // lines = GetLines();
-                                
+
                 // var a = GetBusRelation();
-                
+                GetLineToBus();
                 Console.WriteLine("Done.");
             }
             catch(Exception e)
@@ -51,15 +54,16 @@ namespace test
         private static List<string[]> GetIEDsInfo(XmlDocument xmlDocument)
         {
             // 取得所有IED节点
-            var IEDsList = xmlDocument.GetElementsByTagName("IED");
-
+            var IEDs = xmlDocument.GetElementsByTagName("IED");
+            
             // 提取每个IED节点的name,desc属性信息
-            foreach (var item in IEDsList)
+            foreach (var item in IEDs)
             {
                 var ied = (XmlElement)item;
                 string name = ied.GetAttribute("name");
                 string desc = ied.GetAttribute("desc");
                 IEDsInfo.Add(new[] { name, desc });
+                IEDList.Add(ied);
             }
             return IEDsInfo;
         }
@@ -300,8 +304,27 @@ namespace test
         {
             var lines = GetLines();
             var keys = lines.SelectMany(line => line.Value.Keys);
+            foreach (var i in keys)
+            {
+                Console.WriteLine(i);
+            }
+            Regex reg = new Regex(@"(M.*L\d{4})");
 
-            xmlDoc.where();
+
+            //var ls = IEDList.Where(ele=>reg.IsMatch(ele.GetAttribute("name"))).SelectMany(e=>e.GetElementsByTagName("AccessPoint").OfType<XmlNode>()).Where(e=>((XmlElement)e).GetAttribute("name")=="M1");
+            var ls_ln0 = IEDList.Where(ele => reg.IsMatch(ele.GetAttribute("name"))).Select(e=>e.SelectSingleNode("//ns:LDevice[@inst='MUSV']/ns:LN0",nsmgr));
+            //Console.WriteLine();
+            
+            foreach(var e in ls_ln0)
+            {
+                var ied_name = ((XmlElement)e.ParentNode).GetAttribute("name");
+                var ln0 = e.SelectSingleNode("//ns:LDevice[@inst='MUSV']/ns:LN0",nsmgr);
+
+                Console.WriteLine(ied_name);
+            }
+            
         }
+
+        
     }
 }
