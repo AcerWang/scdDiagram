@@ -311,20 +311,57 @@ namespace test
             Regex reg = new Regex(@"(M.*L\d{4})");
 
 
-            //var ls = IEDList.Where(ele=>reg.IsMatch(ele.GetAttribute("name"))).SelectMany(e=>e.GetElementsByTagName("AccessPoint").OfType<XmlNode>()).Where(e=>((XmlElement)e).GetAttribute("name")=="M1");
-            var ls_ln0 = IEDList.Where(ele => reg.IsMatch(ele.GetAttribute("name"))).Select(e=>e.SelectSingleNode("//ns:LDevice[@inst='MUSV']/ns:LN0",nsmgr));
-            //Console.WriteLine();
-            
-            foreach(var e in ls_ln0)
-            {
-                var ied_name = ((XmlElement)e.ParentNode).GetAttribute("name");
-                var ln0 = e.SelectSingleNode("//ns:LDevice[@inst='MUSV']/ns:LN0",nsmgr);
+            // 获得一个包含[ied名称,M1节点]列表的可迭代对象
+            var mu_ieds = IEDList.Where(ele=>reg.IsMatch(ele.GetAttribute("name"))).
+                Select(e => { var name = e.GetAttribute("name");var node = e.SelectSingleNode("//ns:AccessPoint[@name='M1']", nsmgr);ArrayList arrayList = new ArrayList();arrayList.Add(name);arrayList.Add(node);return arrayList; });
 
-                Console.WriteLine(ied_name);
+            foreach (var e in mu_ieds)
+            {
+                var name = (string)e[0];
+                var element = (XmlElement)e[1];
+                
+                // 获取 LDevice/LN0/Inputs/ExtRef 节点
+                var ext_refs = element.SelectSingleNode("//ns:LDevice[@inst='MUSV']/ns:LN0[@lnClass='LLN0']/ns:Inputs",nsmgr).ChildNodes.OfType<XmlElement>().Skip(1);
+                foreach (var ele in ext_refs) {
+
+                    var desc = FindReference(ele);
+                }
+                Console.WriteLine(name);
             }
             
+
         }
 
-        
+        /// <summary>
+        /// 传入Inputs节点下的ExtRef元素
+        /// 解析其对应的引用节点的字符串描述
+        /// </summary>
+        /// <param name="element"></param>
+        /// <returns>返回引用所对应输入的 desc 信息</returns>
+        public static string FindReference(XmlElement element) {
+            
+            // ExtRef 的属性信息
+            var ied_name = element.GetAttribute("iedName");
+            var ldInst = element.GetAttribute("ldInst");
+            var lnClass = element.GetAttribute("lnClass");
+            var lnInst = element.GetAttribute("lnInst");
+
+            // 该 ExtRef 所引用的外部 LN 节点
+            XmlElement target_ln;
+            try
+            {
+                target_ln = (XmlElement)IEDList.Where(ele => ele.GetAttribute("name") == ied_name).Select(ele => ele.SelectSingleNode("//ns:LDevice[@inst='" + ldInst + "']/ns:LN[@lnClass='" + lnClass + "']", nsmgr)).ToArray()[0];
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.ToString());
+                return null;
+            }
+
+            // 获取对应 LN 节点的描述信息
+            string desc = target_ln.GetAttribute("desc");
+            
+            return desc;
+        }
     }
 }
