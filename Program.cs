@@ -9,10 +9,13 @@ namespace test
 {
     class Program
     {
-        const string xml_file_path = "ZTB.scd";
+        const string xml_file_path = "BZB.scd";
         static private List<string[]> IEDsInfo = new List<string[]>();
         static private List<XmlElement> IEDList = new List<XmlElement>();
         static private XmlNamespaceManager nsmgr;
+
+        static string[] d_index = new[] { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" };
+        static string[] c_index = new[] { "O", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX" };
 
         static void Main(string[] args)
         {
@@ -23,8 +26,8 @@ namespace test
             {
                 XmlDocument xmlDoc = new XmlDocument();
                 xmlDoc.Load(xml_file_path);
-                 nsmgr = new XmlNamespaceManager(xmlDoc.NameTable);
-                 nsmgr.AddNamespace("ns", "http://www.iec.ch/61850/2003/SCL");
+                nsmgr = new XmlNamespaceManager(xmlDoc.NameTable);
+                nsmgr.AddNamespace("ns", "http://www.iec.ch/61850/2003/SCL");
                 GetIEDsInfo(xmlDoc);
 
                 // GetTransformers();
@@ -32,7 +35,8 @@ namespace test
                 // lines = GetLines();
 
                 // var a = GetBusRelation();
-                GetLineToBus();
+                // GetLineToBus();
+                GetTransToBus();
                 Console.WriteLine("Done.");
             }
             catch(Exception e)
@@ -201,9 +205,6 @@ namespace test
             Regex relation = new Regex(@"([1-9]|[IVX]+)-([1-9]|[IVX]+)|([123567][012356][1-9]{2})");
             Regex relation_no = new Regex(@"(\d{3,})");
 
-            var d_index = new[] { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
-            var c_index = new[] { "O", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX" };
-
             var bus_relation = IEDsInfo.Where(ied => ied[1].Contains("母联") || ied[1].Contains("分段")).Select(ied=>ied);
 
             if (bus_relation.Count() == 0)
@@ -238,8 +239,8 @@ namespace test
                     }
                     else
                     {
-                        seg_arr[0] = Array.IndexOf(d_index,m_part[2]);
-                        seg_arr[1] = Array.IndexOf(d_index,m_part[3]);
+                        seg_arr[0] = Array.IndexOf(d_index,m_part[2].ToString());
+                        seg_arr[1] = Array.IndexOf(d_index,m_part[3].ToString());
                     }
                 }
                 level = low_level.Contains(level) ? level : level * 10;
@@ -300,36 +301,71 @@ namespace test
             return m_relation;
         }
 
-        private static void GetLineToBus()
+        /// <summary>
+        /// 获取线路与母线的连接关系，{"2201":[1,2],"1102":[1],"1103":[2],...}
+        /// </summary>
+        /// <returns>按线路名称，所连接母线段组成键值对</returns>
+        private static IDictionary GetLineToBus()
         {
-            var lines = GetLines();
-            var keys = lines.SelectMany(line => line.Value.Keys);
-            foreach (var i in keys)
+            //var lines = GetLines();
+            //var keys = lines.SelectMany(line => line.Value.Keys);
+            //foreach (var i in keys)
+            //{
+            //    Console.WriteLine(i);
+            //}
+
+            Regex reg = new Regex(@"M.*L(\d{4})");
+
+
+            // 获得一个包含[ied名称,AccessPoint为M1的节点]列表的可迭代对象
+            var mu_name_extref = IEDList.Where(ele => reg.IsMatch(ele.GetAttribute("name"))).Select(ied =>
+                                  {
+                                      var name = ied.GetAttribute("name");
+                                      var ext_ref = ied.SelectNodes("//ns:IED[@name='" + ied.GetAttribute("name") + "']/ns:AccessPoint[contains(@name,'M')]/ns:Server/ns:LDevice[contains(@inst,'MUSV')]/ns:LN0/ns:Inputs/ns:ExtRef", nsmgr).OfType<XmlNode>().ToArray();
+                                      ArrayList ref_list = new ArrayList();
+                                      ref_list.Add(name);
+                                      ref_list.Add(ext_ref);
+                                      return ref_list;
+                                  });
+            Regex bus_no = new Regex(@"([1-9]|[IVX]+)");
+            Dictionary<string,ISet<int>> line_bus_dic = new Dictionary<string,ISet<int>>();
+            
+            foreach (var e in mu_name_extref)
             {
-                Console.WriteLine(i);
-            }
-            Regex reg = new Regex(@"(M.*L\d{4})");
-
-
-            // 获得一个包含[ied名称,M1节点]列表的可迭代对象
-            var mu_ieds = IEDList.Where(ele=>reg.IsMatch(ele.GetAttribute("name"))).
-                Select(e => { var name = e.GetAttribute("name");var node = e.SelectSingleNode("//ns:AccessPoint[@name='M1']", nsmgr);ArrayList arrayList = new ArrayList();arrayList.Add(name);arrayList.Add(node);return arrayList; });
-
-            foreach (var e in mu_ieds)
-            {
+                // MU 的 IED name和自身节点
                 var name = (string)e[0];
-                var element = (XmlElement)e[1];
-                
-                // 获取 LDevice/LN0/Inputs/ExtRef 节点
-                var ext_refs = element.SelectSingleNode("//ns:LDevice[@inst='MUSV']/ns:LN0[@lnClass='LLN0']/ns:Inputs",nsmgr).ChildNodes.OfType<XmlElement>().Skip(1);
-                foreach (var ele in ext_refs) {
+                var ext_ref = (IEnumerable)e[1];
 
-                    var desc = FindReference(ele);
+                var line = reg.Match(name).Value;
+                line = reg.Split(line)[1];
+
+                if (line == "")
+                    continue;
+                if (line_bus_dic.ContainsKey(line))
+                    continue;
+                line_bus_dic[line] = line_bus_dic.ContainsKey(line)? line_bus_dic[line]:new SortedSet<int>();
+                
+                // 获取该线路下的 LDevice/LN0/Inputs/ExtRef 节点
+                foreach (var ele in ext_ref) {
+                    var node_ref = (XmlElement)ele;
+                    var desc = FindReference(node_ref);
+                    var m = bus_no.Match(desc);
+                    if (m.Value == "")
+                    {
+                        continue;
+                    }
+                    else
+                    {
+                        // 获取对应的母线编号
+                        var index = c_index.Contains(m.Value) ? Array.IndexOf(c_index, m.Value) : Array.IndexOf(d_index,m.Value);
+                        line_bus_dic[line].Add(index);
+                    }
                 }
                 Console.WriteLine(name);
             }
-            
 
+            //Console.WriteLine("pass");
+            return line_bus_dic;
         }
 
         /// <summary>
@@ -338,30 +374,72 @@ namespace test
         /// </summary>
         /// <param name="element"></param>
         /// <returns>返回引用所对应输入的 desc 信息</returns>
-        public static string FindReference(XmlElement element) {
-            
-            // ExtRef 的属性信息
-            var ied_name = element.GetAttribute("iedName");
-            var ldInst = element.GetAttribute("ldInst");
-            var lnClass = element.GetAttribute("lnClass");
-            var lnInst = element.GetAttribute("lnInst");
-
+        private static string FindReference(XmlElement element) {
+           
             // 该 ExtRef 所引用的外部 LN 节点
             XmlElement target_ln;
+            string desc = "";
             try
             {
-                target_ln = (XmlElement)IEDList.Where(ele => ele.GetAttribute("name") == ied_name).Select(ele => ele.SelectSingleNode("//ns:LDevice[@inst='" + ldInst + "']/ns:LN[@lnClass='" + lnClass + "']", nsmgr)).ToArray()[0];
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.ToString());
-                return null;
+                // ExtRef 的属性信息
+                var ied_name = element.GetAttribute("iedName");
+                var ldInst = element.GetAttribute("ldInst");
+                var lnClass = element.GetAttribute("lnClass");
+                var lnInst = element.GetAttribute("lnInst");
+
+                // 对于非提供电压信息的ExtRef，直接跳过
+                if (lnInst == "")
+                    return desc;
+                target_ln = (XmlElement)IEDList.Where(ele => ele.GetAttribute("name") == ied_name).
+                                                Select(ele => ele.SelectSingleNode("//ns:IED[@name='"+ied_name+"']//ns:LDevice[@inst='" + ldInst + "']/ns:LN[@lnClass='" + lnClass + "' and @inst='"+lnInst+"']", nsmgr)).ToArray()[0];
+                
+                // 获取对应 LN 节点的描述信息
+                desc = target_ln.GetAttribute("desc");
             }
 
-            // 获取对应 LN 节点的描述信息
-            string desc = target_ln.GetAttribute("desc");
-            
+            catch (Exception)
+            {
+                Console.WriteLine("Not reqired ExtRef node.");
+            }
+
             return desc;
         }
+
+
+        private static void GetTransToBus()
+        {
+            Regex reg = new Regex(@"(\d{4})");
+            Regex trans_no = new Regex(@"(\d{1})");
+
+            var trans = IEDsInfo.Where(e=>e[0].StartsWith("M")&&reg.IsMatch(e[0])&&e[1].Contains("主变")).Select(e=>e);
+
+            var trans_dic = new Dictionary<string,Dictionary<int,IList>>();
+
+            foreach (var item in trans)
+            {
+                var name = reg.Match(item[0]).Value;
+                var level = int.Parse(name.Substring(0, 2));
+                
+                // 属于低压部分，直接跳过
+                var low_evel = new[] {0, 10, 35, 66 };
+                if (low_evel.Contains(level))
+                    continue;
+
+                level = level * 10;
+                var t_no = trans_no.Match(item[1]).Value;
+
+                if (!trans_dic.ContainsKey(t_no))
+                    trans_dic[t_no] = new Dictionary<int, IList>();
+
+                if (!trans_dic[t_no].ContainsKey(level))
+                    trans_dic[t_no][level] = new ArrayList();
+
+                var mt_node = IEDList.Where(ied => ied.GetAttribute("name").Equals(item[0])).Select(ied=>ied);
+                //trans_dic[t_no][level].Add(1);
+
+                Console.WriteLine(name+" : "+item[1]);
+            }
+        }
+
     }
 }
