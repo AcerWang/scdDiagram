@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -16,6 +16,13 @@ namespace SCDVisual
         // 保存已输出的主变位置信息
         private static IDictionary<int,int[]> trans = new Dictionary<int,int[]>();
 
+        // 保存已输出的母线位置信息
+        private static IDictionary<int, IDictionary<int,int[]>> buses = new Dictionary<int,IDictionary<int,int[]>>();
+
+        // 保存电压等级
+        private static int High_volt;
+        private static int Mid_volt;
+
         public static void Main(string[] args)
         {
             SCDResolver.init();
@@ -31,14 +38,14 @@ namespace SCDVisual
             }
 
             DrawTransformer();
-
+            html.Save("index.html");
             Console.WriteLine("Draw done.");
 
             Console.ReadLine();
         }
 
         /// <summary>
-        /// 通过解析得到的主变信息画出对应的图
+        /// 通过解析得到的主变信息画出对应主变位置图，保存主变位置信息
         /// </summary>
         private static void DrawTransformer()
         {
@@ -81,9 +88,6 @@ namespace SCDVisual
                 // 保存此主变位置信息
                 trans[trans_no] = new int[] {x,y };
             }
-            // 保存，输出到新的文件
-            html.Save("index.html");
-
         }
 
         /// <summary>
@@ -103,6 +107,84 @@ namespace SCDVisual
             }
             return element;
 
+        }
+
+        /// <summary>
+        /// 通过解析得到的母线信息画出对应母线的位置图，保存母线位置信息
+        /// </summary>
+        private static void DrawBus()
+        {
+            var buses = SCDResolver.buses;
+            int[] volts = buses.Keys.OfType<int>().ToArray();
+            var num = volts.Count();
+            if (num < 2)
+                return;
+
+            // 获取高，中压等级电压
+            High_volt = volts[num - 1];
+            Mid_volt  = volts[num - 2];
+
+            // 高压侧是500kV及以上时，按照3/2接线方式处理
+            if (High_volt >= 500)
+            {
+                // 画3/2接线
+                draw_one_and_half();
+            }
+            // 高压侧是220kV及以下时，按照正常逻辑处理
+            else
+            {
+                // 不存在关联关系的母线，直接画单独分段线段
+                if(SCDResolver.buses_relation[High_volt].Count() == 0)
+                {
+                    // 每一段，单独画
+                    foreach(var i in SCDResolver.buses[High_volt])
+                    {
+
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// 3/2接线的绘制方法
+        /// </summary>
+        private static void draw_one_and_half()
+        {
+            int x = 50, y = 200;
+
+            foreach (int i in SCDResolver.buses[High_volt])
+            {
+                // 母线元素节点，及其属性设置
+                var ele_attrs = new Dictionary<string, string>() {
+                    { "id", High_volt.ToString()+ "kV_" +i.ToString()},
+                    { "x1",x.ToString()},
+                    { "y1",y.ToString()},
+                    { "x2",(x+1200).ToString()},
+                    { "y2",y.ToString()},
+                };
+                var ele = NewElement("use", ele_attrs);
+                svg.AppendChild(ele);
+
+                // 母线对应的文字，及其属性设置
+                var text_attrs = new Dictionary<string, string>()
+                {
+                    { "dy", "0" } ,
+                    { "stroke", "black" } ,
+                    { "stroke-width", "0.5" } ,
+                    { "x", (x-20).ToString() } ,
+                    { "y", (y+5).ToString()}
+                };
+                var text = NewElement("text",text_attrs);
+                text.InnerText = SCDResolver.c_index[i];
+                svg.AppendChild(text);
+
+                // 保存母线位置信息
+                buses[High_volt] = new Dictionary<int,int[]>();
+                buses[High_volt][i] = new int[] { x,y };
+
+                // 调整 x, y
+                y = y + 150;
+            }
         }
     }
 }
