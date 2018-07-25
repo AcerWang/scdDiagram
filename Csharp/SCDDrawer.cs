@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -30,9 +31,9 @@ namespace SCDVisual
             {
                 html.Load("base.html");
                 svg = html.SelectSingleNode("/html/body/svg");
-                
+
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 Console.WriteLine(e.StackTrace);
             }
@@ -40,6 +41,7 @@ namespace SCDVisual
             DrawTransformer();
             html.Save("index.html");
             Console.WriteLine("Draw done.");
+
 
             Console.ReadLine();
         }
@@ -50,40 +52,23 @@ namespace SCDVisual
         private static void DrawTransformer()
         {
             var trans = SCDResolver.transformers;
-            // 主变的起始坐标
-            int x = 0, y = 450;
 
             if (trans == null)
                 return;
+
+            // 主变的起始坐标
+            int x = 0, y = 450;
             // 遍历所有主变信息，生成各主变元素
             foreach (int trans_no in trans.Keys)
             {
+                // 确定主变位置坐标
                 x = 300 + 400 * (trans_no-1);
-                Dictionary<string, string> ele_attrs = new Dictionary<string, string>()
-                {
-                    { "id", (string)trans[trans_no] } ,
-                    { "x", x.ToString() } ,
-                    { "y", y.ToString() } ,
-                    { "href", "#Trans" }
-                };
-                // 创建新节点
-                XmlElement element = NewElement("use",ele_attrs);
-                // 添加元素节点到svg节点后面
-                svg.AppendChild(element);
 
-                // 创建对应的文字信息
-                Dictionary<string, string> text_attrs = new Dictionary<string, string>()
-                {
-                    { "dy", "0" } ,
-                    { "stroke", "black" } ,
-                    { "stroke-width", "0.5" } ,
-                    { "x", (x-20).ToString() } ,
-                    { "y", (y+25).ToString()}
-                };
-                // 添加文字节点大svg节点后面
-                XmlElement text = NewElement("text",text_attrs);
-                text.InnerText = (string)trans[trans_no];
-                svg.AppendChild(text);
+                // 画主变
+                draw_component(x,y,"#Trans");
+
+                // 显示主变对应的文字信息
+                draw_text((string)trans[trans_no], x - 20, y + 25);
 
                 // 保存此主变位置信息
                 trans_location[trans_no] = new int[] {x,y };
@@ -114,7 +99,7 @@ namespace SCDVisual
                 {
                     // 画一条母线
                     draw_single_line(High_volt.ToString() + "kV", i, x, y, x + 1200, y);
-
+                    draw_text(SCDResolver.c_index[i], x - 20, y + 5);
                     // 存储位置信息
                     buses_location[High_volt] = new Dictionary<int, int[]>();
                     buses_location[High_volt][i] = new int[] { x, y };
@@ -138,9 +123,10 @@ namespace SCDVisual
                     {
                         // 画一条母线
                         draw_single_line(High_volt.ToString()+"kV",i,x,y,x+seg_length,y);
-
+                        draw_text(SCDResolver.c_index[i], x - 20, y + 5);
                         // 存储坐标
-                        buses_location[High_volt] = new Dictionary<int,int[]>();
+                        if (!buses_location.ContainsKey(High_volt))
+                            buses_location[High_volt] = new Dictionary<int, int[]>();
                         buses_location[High_volt][i] = new int[] { x, y };
 
                         // 更新x坐标
@@ -164,16 +150,60 @@ namespace SCDVisual
                         {
                             // 画一条母线
                             draw_single_line(High_volt.ToString()+"kV",i,x,y,x+1200,y);
-
+                            draw_text(SCDResolver.c_index[i], x - 20, y + 5);
                             // 存储母线位置
-                            buses_location[High_volt] = new Dictionary<int, int[]>();
+                            if (!buses_location.ContainsKey(High_volt))
+                                buses_location[High_volt] = new Dictionary<int, int[]>();
                             buses_location[High_volt][i] = new int[] { x,y };
 
                             // 调整坐标
                             y = y - 40;
                         }
-                    }
 
+                        // 并联两母线，画出母联
+                        draw_component(x+20, y+40, "#BusUnion");
+                    }
+                    
+                    // 多组母联
+                    else
+                    {
+                        var relation = SCDResolver.buses_relation[High_volt]["母联"].Values;
+                        var relation_res = union_seg(relation);
+                        // 初始坐标，及每段母线的长度
+                        int seg_length = line_seg_length(relation_res.Count), x = 50, y = 350;
+                        
+                        // 画母线
+                        foreach (var item in relation_res)
+                        {
+                            // 画内侧的base母线
+                            draw_single_line(High_volt.ToString() + "kV",item.Key,x,y,x+seg_length,y);
+                            draw_text(SCDResolver.c_index[item.Key],x-20,y+5);
+                            // 保存母线位置信息
+                            if (!buses_location.ContainsKey(High_volt))
+                                buses_location[High_volt] = new Dictionary<int, int[]>();
+                            buses_location[High_volt][item.Key] = new int[] { x,y };
+                            // 调整坐标
+                            y = y - 40;
+                            int partLen = (seg_length - (item.Value.Count - 1) * 50) / item.Value.Count;
+                            int x2 = x + partLen;
+
+                            // 画与base母线对应的外侧母线
+                            foreach(var i in item.Value)
+                            {
+                                // 画母线
+                                draw_single_line(High_volt.ToString()+"kV",i,x,y,x2,y);
+                                draw_text(SCDResolver.c_index[i], x - 20, y + 5);
+                                // 保存母线位置信息
+                                buses_location[High_volt][i] = new int[] { x, y };
+                                // 调整坐标
+                                x = x2 + 50;
+                                x2 = x + partLen;
+                            }
+                            x = x2 - x + 100;
+                            x2 = x + seg_length;
+                            y = y + 40;
+                        }
+                    }
                 }
             }
         }
@@ -267,16 +297,117 @@ namespace SCDVisual
             return seg_len;
         }
 
-        private static void draw_bus_union(int id,int x, int y,string href, string color="red")
+        /// <summary>
+        /// 创建元件节点
+        /// </summary>
+        /// <param name="x">元件显示的横坐标</param>
+        /// <param name="y">元件显示的纵坐标</param>
+        /// <param name="href">引用的元件</param>
+        /// <param name="color">元件颜色</param>
+        private static void draw_component(int x, int y,string href, string color="red")
         {
-            var attrs = new Dictionary<string, string> {
+            // 元件的基本属性信息
+            Dictionary<string,string> attrs = new Dictionary<string, string> {
                 { "x", x.ToString() } ,
                 { "y", y.ToString() } ,
                 { "href", href },
                 { "stroke", color }
             };
-            var ele = NewElement("use",attrs);
+            // 添加元件节点到svg节点后面
+            XmlElement ele = NewElement("use",attrs);
+            svg.AppendChild(ele);
 
+        }
+
+        /// <summary>
+        /// 创建文字节点
+        /// </summary>
+        /// <param name="text">要显示的文字信息</param>
+        /// <param name="x">文字显示的起点横坐标</param>
+        /// <param name="y">文字显示的起点纵坐标</param>
+        /// <param name="color"></param>
+        private static void draw_text(string text, int x,int y, string color = "black")
+        {
+            // 文字元素的基本信息
+            Dictionary<string, string> text_attrs = new Dictionary<string, string>()
+                {
+                    { "dy", "0" } ,
+                    { "stroke", color } ,
+                    { "stroke-width", "0.5" } ,
+                    { "x", x.ToString() } ,
+                    { "y", y.ToString()}
+                };
+            // 添加文字节点大svg节点后面
+            XmlElement ele_text = NewElement("text", text_attrs);
+            ele_text.InnerText = text;
+            svg.AppendChild(ele_text);
+        }
+
+        /// <summary>
+        /// 处理母联很多组的情况，{1:[2], 3:[4], 5:[6,7]}
+        /// </summary>
+        /// <param name="bus_relation">传入的原始母联分组情况</param>
+        /// <returns>返回分好的类别</returns>
+        private static Dictionary<int,List<int>> union_seg(ICollection<Array> bus_relation)
+        {
+            // 传入的量拷贝一份副本供操作
+            List<int[]> relation_copy = new List<int[]>();
+            foreach(int[] arr in bus_relation)
+            {
+                int[] dest = new int[2];
+                Array.Copy(arr,dest,2);
+                relation_copy.Add(dest);
+            }
+            
+            // 要返回的对象
+            Dictionary<int, List<int>> res = new Dictionary<int, List<int>>();
+            // 分离处理逻辑
+            while (relation_copy.Count > 0)
+            {
+                int a0 = relation_copy[0][0], a1 = relation_copy[0][1];
+                relation_copy.Remove(relation_copy[0]);
+                Boolean flag = false;
+                    
+                for(int i=0; i<relation_copy.Count;i++)
+                {
+                    var item = relation_copy[i];
+                    if (item.Contains(a0))
+                    {
+                        int target = a0 == item[0] ? item[1] : item[0];
+                        if (res.ContainsKey(a0))
+                            res[a0].Add(target);
+                        else
+                        {
+                            res[a0] = new List<int>();
+                            res[a0].Add(a1);
+                            res[a0].Add(target);
+                        }
+                        relation_copy.Remove(item);
+                        flag = true;
+                        continue;
+                    }
+                    if (item.Contains(a1))
+                    {
+                        int target = a1 == item[0] ? item[1] : item[0];
+                        if (res.ContainsKey(a1))
+                            res[a1].Add(target);
+                        else
+                        {
+                            res[a1] = new List<int>();
+                            res[a1].Add(a0);
+                            res[a1].Add(target);
+                        }
+                        relation_copy.Remove(item);
+                        flag = true;
+                        continue;
+                    }
+                }
+                if (!flag)
+                {
+                    res[a0] = new List<int> { a1 };
+                }
+            }
+            return res;
         }
     }
 }
