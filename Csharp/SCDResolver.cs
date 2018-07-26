@@ -31,7 +31,7 @@ namespace SCDVisual
         public static IDictionary lines;
 
         // 母线关系信息
-        public static IDictionary<int,IDictionary<string,IDictionary<string,Array>>> buses_relation;
+        public static IDictionary<int,IDictionary<string,IDictionary<string,int[]>>> buses_relation;
 
         // 母线-线路连接关系信息
         public static IDictionary line_bus_relation;
@@ -244,7 +244,7 @@ namespace SCDVisual
         /// 获取母线连接关系，{110:{ "分段":{"1101": [1,2] ,"1102": [3,4] } , "母联":{"1103": [1,3] ,"1104": [2,4] } },35:...... }
         /// </summary>
         /// <returns>按电压等级，分段，母联关系列出所有连接关系</returns>
-        private static IDictionary<int,IDictionary<string,IDictionary<string,Array>>> GetBusRelation()
+        private static IDictionary<int,IDictionary<string,IDictionary<string,int[]>>> GetBusRelation()
         {
             Regex relation = new Regex(@"([1-9]|[IVX]+)-([1-9]|[IVX]+)|([123567][012356][1-9]{2})");
             Regex relation_no = new Regex(@"(\d{3,})");
@@ -256,7 +256,7 @@ namespace SCDVisual
                 return null;
             }
 
-            var m_relation = new SortedDictionary<int, IDictionary<string, IDictionary<string, Array>>>();
+            var m_relation = new SortedDictionary<int, IDictionary<string, IDictionary<string, int[]>>>();
             var low_level = new[] { 10, 35, 66 };
 
             try
@@ -300,7 +300,7 @@ namespace SCDVisual
                     // 若是新的电压等级，创建新的存储结构
                     if (!m_relation.ContainsKey(level))
                     {
-                        m_relation[level] = new Dictionary<string, IDictionary<string, Array>>();
+                        m_relation[level] = new Dictionary<string, IDictionary<string, int[]>>();
                     }
 
                     // 判断关联类型，存储关联部分到关系数据结构中
@@ -319,7 +319,7 @@ namespace SCDVisual
                             }
                             if (m_relation[level]["分段"] == null)
                             {
-                                m_relation[level]["分段"] = new Dictionary<string, Array>();
+                                m_relation[level]["分段"] = new Dictionary<string, int[]>();
                             }
 
                             if (m_relation[level]["分段"].ContainsKey(m_part))
@@ -341,7 +341,7 @@ namespace SCDVisual
                             }
                             if (m_relation[level]["母联"] == null)
                             {
-                                m_relation[level]["母联"] = new Dictionary<string, Array>();
+                                m_relation[level]["母联"] = new Dictionary<string, int[]>();
                             }
                             if (m_relation[level]["母联"].ContainsKey(m_part))
                             {

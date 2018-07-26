@@ -76,9 +76,9 @@ namespace SCDVisual
         }
 
         /// <summary>
-        /// 通过解析得到的母线信息画出对应母线的位置图，保存母线位置信息
+        /// 通过解析得到的母线信息画出对应母线的母联关系图，保存母线位置信息
         /// </summary>
-        private static void DrawBus()
+        private static void Draw_Bus_Union()
         {
             var buses = SCDResolver.buses;
             int[] volts = buses.Keys.OfType<int>().ToArray();
@@ -111,98 +111,204 @@ namespace SCDVisual
             // 高压侧是220kV及以下时，按照正常逻辑处理
             else
             {
-                // 不存在关联关系的母线，直接画单独分段线段
-                if(SCDResolver.buses_relation[High_volt].Count() == 0)
-                {
-                    int x = 50, y = 350;
-                    // 每一段母线的长度
-                    int seg_length = line_seg_length(SCDResolver.buses[High_volt].Count);
+                draw_single_side_bus(High_volt);
+            }
 
-                    // 每一段，单独画，水平排列
-                    foreach(var i in SCDResolver.buses[High_volt])
+            // 中压侧母线
+            if (Mid_volt < 100)
+                return;
+
+            // 普通接线，按照上述高压侧操作
+            draw_single_side_bus(Mid_volt);
+        }
+
+        /// <summary>
+        /// 通过解析得到的母线信息画出对应母线的分段关系图，保存母线位置信息
+        /// </summary>
+        private static void Draw_Bus_Seg()
+        {   
+            // 高压侧存在分段
+            if(SCDResolver.buses_relation.ContainsKey(High_volt) && SCDResolver.buses_relation[High_volt].ContainsKey("分段"))
+            {   
+                // 默认二分段
+                if (SCDResolver.buses_relation[High_volt]["分段"] == null)
+                {   
+                    // 之前解析结果只有一条母线，补齐另一条
+                    if (SCDResolver.buses[High_volt].Count == 1)
+                        SCDResolver.buses[High_volt].Add(SCDResolver.buses[High_volt].Last() + 1);
+                    int x = 50, y = 350;
+                    string color = "red";
+                    // 并联画两条母线
+                    foreach (int i in SCDResolver.buses[High_volt])
                     {
-                        // 画一条母线
-                        draw_single_line(High_volt.ToString()+"kV",i,x,y,x+seg_length,y);
+                        draw_single_line(High_volt.ToString() + "kV", i, x, y, x + 600, y, color);
                         draw_text(SCDResolver.c_index[i], x - 20, y + 5);
-                        // 存储坐标
+
+                        // 记录位置信息
                         if (!buses_location.ContainsKey(High_volt))
                             buses_location[High_volt] = new Dictionary<int, int[]>();
-                        buses_location[High_volt][i] = new int[] { x, y };
+                        if(!buses_location[High_volt].ContainsKey(i))
+                            buses_location[High_volt][i] = new int[] { x, y };
 
-                        // 更新x坐标
-                        x = x + seg_length + 50;
+                        x += 650;
                     }
+                    // 画分段开关
+                    draw_component(640, 330, "#Bus-Seg", color);
                 }
-
-                // 高压侧有母联的情况
-                if (SCDResolver.buses_relation[High_volt].ContainsKey("母联"))
+                
+                // 多分段情况
+                else
                 {
-                    // 有母联关系，但各段母线未给出，此情况直接按并联两条母线画图
-                    if (SCDResolver.buses_relation[High_volt]["母联"] == null)
+                    // 分段组数
+                    int seg_num = SCDResolver.buses_relation[High_volt]["分段"].Count;
+
+                    List<int> longList = new List<int>();
+                    foreach(int[] arr in SCDResolver.buses_relation[High_volt]["分段"].Values)
                     {
-                        // 之前的解析结果只有一条母线，则补齐另一条
-                        if (SCDResolver.buses[High_volt].Count == 1)
-                            SCDResolver.buses[High_volt].Add(SCDResolver.buses[High_volt].Last()+1);
-
-                        int x = 50, y = 350;
-                        // 画两条并联母线
-                        foreach(int i in SCDResolver.buses[High_volt])
-                        {
-                            // 画一条母线
-                            draw_single_line(High_volt.ToString()+"kV",i,x,y,x+1200,y);
-                            draw_text(SCDResolver.c_index[i], x - 20, y + 5);
-                            // 存储母线位置
-                            if (!buses_location.ContainsKey(High_volt))
-                                buses_location[High_volt] = new Dictionary<int, int[]>();
-                            buses_location[High_volt][i] = new int[] { x,y };
-
-                            // 调整坐标
-                            y = y - 40;
-                        }
-
-                        // 并联两母线，画出母联
-                        draw_component(x+20, y+40, "#BusUnion");
+                        longList.AddRange(arr);
                     }
+                    // 总的合并段数，去除重复段
+                    ISet<int> set = new SortedSet<int>(longList);
+                    var total_seg_num = set.Count;
+
+                    int x = 50, part_len = 1200, y = 350;
                     
-                    // 多组母联
-                    else
+                    // 并联型分段
+                    if (total_seg_num - seg_num == 2)
+                        part_len = line_seg_length(seg_num);
+                    // 串联型分段
+                    if (total_seg_num - seg_num == 1)
+                        part_len = line_seg_length(total_seg_num);
+
+                    // 画分段母线
+                    foreach(var item in SCDResolver.buses_relation[High_volt]["分段"].Values)
                     {
-                        var relation = SCDResolver.buses_relation[High_volt]["母联"].Values;
-                        var relation_res = union_seg(relation);
-                        // 初始坐标，及每段母线的长度
-                        int seg_length = line_seg_length(relation_res.Count), x = 50, y = 350;
-                        
-                        // 画母线
-                        foreach (var item in relation_res)
-                        {
-                            // 画内侧的base母线
-                            draw_single_line(High_volt.ToString() + "kV",item.Key,x,y,x+seg_length,y);
-                            draw_text(SCDResolver.c_index[item.Key],x-20,y+5);
-                            // 保存母线位置信息
+                        foreach(var i in item)
+                        {   // 初次画该电压等级的母线
                             if (!buses_location.ContainsKey(High_volt))
                                 buses_location[High_volt] = new Dictionary<int, int[]>();
-                            buses_location[High_volt][item.Key] = new int[] { x,y };
-                            // 调整坐标
-                            y = y - 40;
-                            int partLen = (seg_length - (item.Value.Count - 1) * 50) / item.Value.Count;
-                            int x2 = x + partLen;
-
-                            // 画与base母线对应的外侧母线
-                            foreach(var i in item.Value)
+                            
+                            // 存在该电压等级，判断该段母线是否存在记录中
+                            if (!buses_location[High_volt].ContainsKey(i))
                             {
                                 // 画母线
-                                draw_single_line(High_volt.ToString()+"kV",i,x,y,x2,y);
-                                draw_text(SCDResolver.c_index[i], x - 20, y + 5);
-                                // 保存母线位置信息
+                                draw_single_line(High_volt+"kV",i,x,y,x+part_len,y,"red");
+                                draw_text(SCDResolver.c_index[i],x-20,y+5,"red");
+                                
+                                // 记录位置信息
                                 buses_location[High_volt][i] = new int[] { x, y };
+                                
                                 // 调整坐标
-                                x = x2 + 50;
-                                x2 = x + partLen;
+                                x = x + part_len + 50;
                             }
-                            x = x2 - x + 100;
-                            x2 = x + seg_length;
-                            y = y + 40;
+                            
                         }
+                        draw_component(buses_location[High_volt][item[0]][0]-part_len-50-25, y-25, "#BusSeg", "red");
+                    }
+
+                }
+            }
+        }
+
+        /// <summary>
+        /// 画中压、高压侧母联接线
+        /// </summary>
+        /// <param name="Side">Hight_volt / Mid_volt</param>
+        private static void draw_single_side_bus(int Side)
+        {
+            string color = (Side == High_volt) ? "red" : "blue";
+            string href = (Side == High_volt) ? "#BusUnion" : "#BusUnion-down";
+            // 不存在关联关系的母线，直接画单独分段线段
+            if (SCDResolver.buses_relation[Side].Count() == 0)
+            {
+                int x = 50, y = (Side == High_volt) ? 350 : 600;
+                // 每一段母线的长度
+                int seg_length = line_seg_length(SCDResolver.buses[Side].Count);
+                // 每一段，单独画，水平排列
+                foreach (var i in SCDResolver.buses[Side])
+                {
+                    // 画一条母线
+                    draw_single_line(Side.ToString() + "kV", i, x, y, x + seg_length, y,color);
+                    draw_text(SCDResolver.c_index[i], x - 20, y + 5);
+                    // 存储坐标
+                    if (!buses_location.ContainsKey(Side))
+                        buses_location[Side] = new Dictionary<int, int[]>();
+                    buses_location[Side][i] = new int[] { x, y };
+
+                    // 更新x坐标
+                    x = x + seg_length + 50;
+                }
+            }
+
+            // 高压侧有母联的情况
+            if (SCDResolver.buses_relation[Side].ContainsKey("母联"))
+            {
+                // 有母联关系，但各段母线未给出，此情况直接按并联两条母线画图
+                if (SCDResolver.buses_relation[Side]["母联"] == null)
+                {
+                    // 之前的解析结果只有一条母线，则补齐另一条
+                    if (SCDResolver.buses[Side].Count == 1)
+                        SCDResolver.buses[Side].Add(SCDResolver.buses[Side].Last() + 1);
+
+                    int x = 50, y = (Side == High_volt) ? 350 : 600;
+                    int dy = (Side == High_volt) ? -40 : 40;
+                    // 画两条并联母线
+                    foreach (int i in SCDResolver.buses[Side])
+                    {
+                        // 画一条母线
+                        draw_single_line(Side.ToString() + "kV", i, x, y, x + 1200, y, color);
+                        draw_text(SCDResolver.c_index[i], x - 20, y + 5);
+                        // 存储母线位置
+                        if (!buses_location.ContainsKey(Side))
+                            buses_location[Side] = new Dictionary<int, int[]>();
+                        buses_location[Side][i] = new int[] { x, y };
+
+                        // 调整坐标
+                        y = y + dy;
+                    }
+
+                    // 并联两母线，画出母联
+                    draw_component(x + 20, y + 40, href, color);
+                }
+
+                // 多组母联
+                else
+                {
+                    var relation = SCDResolver.buses_relation[Side]["母联"].Values;
+                    var relation_res = union_seg(relation);
+                    // 初始坐标，及每段母线的长度
+                    int seg_length = line_seg_length(relation_res.Count), x = 50, y = (Side == High_volt) ? 350 : 600;
+                    int dy = (Side == High_volt) ? 40 : -40;
+                    // 画母线
+                    foreach (var item in relation_res)
+                    {
+                        // 画内侧的base母线
+                        draw_single_line(Side.ToString() + "kV", item.Key, x, y, x + seg_length, y, color);
+                        draw_text(SCDResolver.c_index[item.Key], x - 20, y + 5);
+                        // 保存母线位置信息
+                        if (!buses_location.ContainsKey(Side))
+                            buses_location[Side] = new Dictionary<int, int[]>();
+                        buses_location[Side][item.Key] = new int[] { x, y };
+                        // 调整坐标
+                        y = y - 40;
+                        int partLen = (seg_length - (item.Value.Count - 1) * 50) / item.Value.Count;
+                        int x2 = x + partLen;
+
+                        // 画与base母线对应的外侧母线
+                        foreach (var i in item.Value)
+                        {
+                            // 画母线
+                            draw_single_line(Side.ToString() + "kV", i, x, y, x2, y, color);
+                            draw_text(SCDResolver.c_index[i], x - 20, y + 5);
+                            // 保存母线位置信息
+                            buses_location[Side][i] = new int[] { x, y };
+                            // 调整坐标
+                            x = x2 + 50;
+                            x2 = x + partLen;
+                        }
+                        x = x2 - x + 100;
+                        x2 = x + seg_length;
+                        y = y + dy;
                     }
                 }
             }
