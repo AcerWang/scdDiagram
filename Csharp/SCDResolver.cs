@@ -28,13 +28,13 @@ namespace SCDVisual
         public static IDictionary<int,ISet<int>> buses;
 
         // 线路信息
-        public static IDictionary lines;
+        public static IDictionary<int,IDictionary<string,string>> lines;
 
         // 母线关系信息
         public static IDictionary<int,IDictionary<string,IDictionary<string,int[]>>> buses_relation;
 
         // 母线-线路连接关系信息
-        public static IDictionary line_bus_relation;
+        public static IDictionary<string,ISet<int>> line_bus_relation;
 
         // 主变-母线连接关系信息
         public static IDictionary trans_bus_relation;
@@ -367,7 +367,7 @@ namespace SCDVisual
         /// 获取线路与母线的连接关系，{"2201":[1,2],"1102":[1],"1103":[2],...}
         /// </summary>
         /// <returns>按线路名称，所连接母线段组成键值对</returns>
-        private static IDictionary GetLineToBus()
+        private static IDictionary<string,ISet<int>> GetLineToBus()
         {
             Regex reg = new Regex(@"^M.*L(\d{4})");
 
@@ -396,9 +396,7 @@ namespace SCDVisual
                 line_bus_dic[line] = line_bus_dic.ContainsKey(line) ? line_bus_dic[line] : new SortedSet<int>();
 
                 // 获取该线路MU对应的外部母线引用
-                //Task.Factory.StartNew(delegate { FindReference(e, line_bus_dic); });
                 FindReference(e,line_bus_dic);
-                // Console.WriteLine(name);
             }
 
             //Console.WriteLine("pass");
