@@ -104,8 +104,7 @@ namespace SCDVisual
                 foreach (int i in SCDResolver.buses[High_volt])
                 {
                     // 画一条母线
-                    draw_single_line(High_volt.ToString() + "kV", i, x, y, x + 1200, y);
-                    draw_text(SCDResolver.c_index[i], x - 20, y + 5);
+                    draw_single_bus(High_volt.ToString() + "kV", i, x, y, x + 1200, y);
                     // 存储位置信息
                     buses_location[High_volt] = new Dictionary<int, int[]>();
                     buses_location[High_volt][i] = new int[] { x, y };
@@ -179,22 +178,100 @@ namespace SCDVisual
                 var iter = SCDResolver.lines[Mid_volt];
                 foreach (var line in iter)
                 {
-                    draw_normal_line(line.Key);
+                    draw_normal_line(line.Key,Mid_volt);
                 }
             }
         }
 
+        /// <summary>
+        /// 画一条线路，包含文字部分
+        /// </summary>
+        /// <param name="line">线路编号</param>
+        /// <param name="x">线路起点横坐标</param>
+        /// <param name="y">线路起点纵坐标</param>
+        /// <param name="color">线路颜色</param>
+        /// <param name="href">线路模板</param>
+        private static void draw_single_line(string line, int x, int y, string color, string href)
+        {
+            // 设置线路节点属性
+            Dictionary<string, string> attrs = new Dictionary<string, string>() {
+                { "id", line } ,
+                { "x", x.ToString() } ,
+                { "y", y.ToString() } ,
+                { "stroke", color } ,
+                { "href", href }
+            };
+            // 引用线路模板
+            XmlElement ele = NewElement("use", attrs);
+            // 追加到svg节点中
+            svg.AppendChild(ele);
 
+            if (href.Contains("Up"))
+                x = x + 5;
+            else if (href.Contains("Down"))
+            {
+                x = x + 5;
+                y = y + 150;
+            }
+            else if (href == "#Line-3/2-R")
+                x = x + 15;
+            else
+                x = x - 5;
+            // 线路文字节点属性
+            Dictionary<string, string> txt_attrs = new Dictionary<string, string>() {
+                { "dy", "0" } ,
+                { "stroke", color } ,
+                { "stroke-width", "0.3" } ,
+                { "style", "writing-mode:tb;"} ,
+                { "x", x.ToString() } ,
+                { "y", y.ToString()}
+            };
+            // 文字信息节点
+            XmlElement txt = NewElement("text", txt_attrs);
+            var volt = int.Parse(line.Substring(0, 2)) * 10;
+            // 要显示的线路文字信息
+            txt.InnerText = SCDResolver.lines[volt][line];
+            // 追加到svg节点中
+            svg.AppendChild(txt);
+        }
+
+        /// <summary>
+        /// 画线路
+        /// </summary>
+        /// <param name="line">线路名称</param>
+        /// <param name="volt_level">电压等级</param>
         private static void draw_normal_line(string line, int volt_level)
         {
+            int dy = volt_level == High_volt ? 0 : 150;
+            string color = volt_level == High_volt ? "red" : "blue";
+            string href = volt_level == High_volt ? "#Line-Up-" : "#Line-Down-";
+            int one_or_two = 1;  // 线路联到1条或2条母线上
+            int i, x, y;
             // `线路-母线` 关系不存在，由母线数量确定其位置
-            if (!SCDResolver.line_bus_relation.ContainsKey(line))
+            if (!SCDResolver.line_bus_relation.ContainsKey(line))    // 有几段该等级的母线，只有一段，直接画在上面，有两段则接在两段上
             {
-                // 存在该电压等级的母线，则线路画在该母线上
-                int i = (buses_location[volt_level].Count == 1) ? 1 : 2;
-                int x = buses_location[volt_level][i][0];
-                int y = buses_location[volt_level][i][1];
+                i = (buses_location[volt_level].Count == 1) ? 1 : 2;
+                one_or_two = i;
             }
+            else    // 存在`线路-母线`关系，根据关系确定其位置
+            {
+                one_or_two = SCDResolver.line_bus_relation[line].Count;
+                // 只取用标号较大的母线即可
+                i = SCDResolver.line_bus_relation[line].Last();
+            }
+            x = buses_location[volt_level][i][0];
+            y = buses_location[volt_level][i][1];
+
+            x = x + (bus_line_num[volt_level][i] + 1) * 40;
+            y = y - 190 + dy;
+            draw_single_line(line,x,y,color,href+one_or_two.ToString());
+                
+            // 记录母线上线路条数
+            if (!bus_line_num.ContainsKey(volt_level))
+                bus_line_num[volt_level] = new Dictionary<int, int>();
+            if (!bus_line_num[volt_level].ContainsKey(i))
+                bus_line_num[volt_level][i] = 0;
+            bus_line_num[volt_level][i] += 1;
         }
 
         /// <summary>
@@ -215,8 +292,7 @@ namespace SCDVisual
                 foreach (var i in SCDResolver.buses[Side])
                 {
                     // 画一条母线
-                    draw_single_line(Side.ToString() + "kV", i, x, y, x + seg_length, y,color);
-                    draw_text(SCDResolver.c_index[i], x - 20, y + 5);
+                    draw_single_bus(Side.ToString() + "kV", i, x, y, x + seg_length, y,color);
                     // 存储坐标
                     if (!buses_location.ContainsKey(Side))
                         buses_location[Side] = new Dictionary<int, int[]>();
@@ -243,8 +319,7 @@ namespace SCDVisual
                     foreach (int i in SCDResolver.buses[Side])
                     {
                         // 画一条母线
-                        draw_single_line(Side.ToString() + "kV", i, x, y, x + 1200, y, color);
-                        draw_text(SCDResolver.c_index[i], x - 20, y + 5);
+                        draw_single_bus(Side.ToString() + "kV", i, x, y, x + 1200, y, color);
                         // 存储母线位置
                         if (!buses_location.ContainsKey(Side))
                             buses_location[Side] = new Dictionary<int, int[]>();
@@ -270,8 +345,7 @@ namespace SCDVisual
                     foreach (var item in relation_res)
                     {
                         // 画内侧的base母线
-                        draw_single_line(Side.ToString() + "kV", item.Key, x, y, x + seg_length, y, color);
-                        draw_text(SCDResolver.c_index[item.Key], x - 20, y + 5);
+                        draw_single_bus(Side.ToString() + "kV", item.Key, x, y, x + seg_length, y, color);
                         // 保存母线位置信息
                         if (!buses_location.ContainsKey(Side))
                             buses_location[Side] = new Dictionary<int, int[]>();
@@ -285,8 +359,7 @@ namespace SCDVisual
                         foreach (var i in item.Value)
                         {
                             // 画母线
-                            draw_single_line(Side.ToString() + "kV", i, x, y, x2, y, color);
-                            draw_text(SCDResolver.c_index[i], x - 20, y + 5);
+                            draw_single_bus(Side.ToString() + "kV", i, x, y, x2, y, color);
                             // 保存母线位置信息
                             buses_location[Side][i] = new int[] { x, y };
                             // 调整坐标
@@ -327,7 +400,7 @@ namespace SCDVisual
                     if (!buses_location[Side].ContainsKey(i))
                     {
                         // 画母线
-                        draw_single_line(Side.ToString() + "kV", i, x, y, x + 600, y, color);
+                        draw_single_bus(Side.ToString() + "kV", i, x, y, x + 600, y, color);
                         draw_text(SCDResolver.c_index[i], x - 20, y + 5);
                         // 记录位置信息
                         buses_location[Side][i] = new int[] { x, y };
@@ -377,7 +450,7 @@ namespace SCDVisual
                             if (!buses_location[Side].ContainsKey(i))
                             {
                                 // 画母线
-                                draw_single_line(Side + "kV", i, x, y, x + part_len, y, "red");
+                                draw_single_bus(Side + "kV", i, x, y, x + part_len, y, "red");
                                 draw_text(SCDResolver.c_index[i], x - 20, y + 5, "red");
 
                                 // 记录位置信息
@@ -415,7 +488,7 @@ namespace SCDVisual
                             if (!buses_location[Side].ContainsKey(i))
                             {
                                 // 画母线
-                                draw_single_line(Side + "kV", i, x, y, x + part_len, y, "red");
+                                draw_single_bus(Side + "kV", i, x, y, x + part_len, y, "red");
                                 draw_text(SCDResolver.c_index[i], x - 20, y + 5, "red");
 
                                 // 记录位置信息
@@ -442,7 +515,7 @@ namespace SCDVisual
         /// <param name="x2">母线终点横坐标</param>
         /// <param name="y2">母线终点纵坐标</param>
         /// <param name="color">母线颜色</param>
-        private static void draw_single_line(string prefix, int id, int x1, int y1, int x2, int y2, string color="red")
+        private static void draw_single_bus(string prefix, int id, int x1, int y1, int x2, int y2, string color="red")
         {
             Dictionary<string, string> ele_attrs = new Dictionary<string, string>()
                             {
