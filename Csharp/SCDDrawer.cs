@@ -99,7 +99,7 @@ namespace SCDVisual
             // 高压侧是500kV及以上时，按照3/2接线方式处理
             if (High_volt >= 500)
             {
-                int x = 50, y = 200;
+                int x = 50, y = 350;
                 // 画3/2接线母线
                 foreach (int i in SCDResolver.buses[High_volt])
                 {
@@ -110,7 +110,7 @@ namespace SCDVisual
                     buses_location[High_volt][i] = new int[] { x, y };
 
                     // 更新y坐标
-                    y = y + 150;
+                    y = y - 150;
                 }
             }
             // 高压侧是220kV及以下时，按照正常逻辑处理
@@ -181,6 +181,15 @@ namespace SCDVisual
                     draw_normal_line(line.Key,Mid_volt);
                 }
             }
+        }
+
+        /// <summary>
+        /// 画3/2接线
+        /// </summary>
+        /// <param name="line">线路编号</param>
+        private static void draw_one_half_line(string line)
+        {
+
         }
 
         /// <summary>
