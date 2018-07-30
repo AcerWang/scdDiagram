@@ -10,7 +10,7 @@ namespace SCDVisual
 {
     class SCDResolver
     {
-        const string xml_file_path = "STHB.scd";
+        const string xml_file_path = "MLB.scd";
         static private List<string[]> IEDsInfo = new List<string[]>();
         static private List<XmlElement> IEDList = new List<XmlElement>();
         static private XmlNamespaceManager nsmgr;
@@ -25,22 +25,27 @@ namespace SCDVisual
         public static IDictionary transformers;
 
         // 母线信息
-        public static IDictionary<int,ISet<int>> buses;
+        public static IDictionary<int, ISet<int>> buses;
 
         // 线路信息
-        public static IDictionary<int,IDictionary<string,string>> lines;
+        public static IDictionary<int, IDictionary<string, string>> lines;
 
         // 母线关系信息
-        public static IDictionary<int,IDictionary<string,IDictionary<string,int[]>>> buses_relation;
+        public static IDictionary<int, IDictionary<string, IDictionary<string, int[]>>> buses_relation;
 
         // 母线-线路连接关系信息
-        public static IDictionary<string,ISet<int>> line_bus_relation;
+        public static IDictionary<string, ISet<int>> line_bus_relation;
 
         // 线路-断路器连接关系信息
-        public static IDictionary<string, ISet<string>> line_breaker_relation = new Dictionary<string,ISet<string>>();
+        public static IDictionary<string, ISet<string>> line_breaker_relation = new Dictionary<string, ISet<string>>();
 
         // 主变-母线连接关系信息
-        public static IDictionary<string,ISet<int>> trans_bus_relation;
+        public static IDictionary<string, ISet<int>> trans_bus_relation;
+
+        public static void Main(string[] args)
+        {
+            init();
+        }
 
         /// <summary>
         /// 启动初始化，获取各参数信息
@@ -551,6 +556,30 @@ namespace SCDVisual
                 return;
             }
             
+        }
+
+        /// <summary>
+        /// 获取500kV及以上断路器间隔
+        /// </summary>
+        /// <param name="volt">电压等级</param>
+        /// <returns>断路器间隔编号前3位的集合</returns>
+        public static ISet<string> get_breakers(int volt)
+        {
+            // 匹配规则
+            string str_volt = volt.ToString().Substring(0, 2);
+            Regex breaker_reg = new Regex(str_volt + @"[1-9]{2}");
+            
+            // 高压IED信息
+            var breakers = IEDsInfo.Where(info => breaker_reg.IsMatch(info[0])).Select(info=>info[0]);
+
+            ISet<string> break_seg = new SortedSet<string>();
+            foreach(var info in breakers)
+            {
+                // 获取断路器间隔编号，并添加到集合中
+                string b_no = breaker_reg.Match(info).Value.Substring(0,3);
+                break_seg.Add(b_no);
+            }
+            return break_seg;
         }
     }
 }

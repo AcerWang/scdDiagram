@@ -2,7 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml;
 
@@ -26,31 +26,34 @@ namespace SCDVisual
         // 记录某电压等级的某母线上已有多少条线路
         private static IDictionary<int,IDictionary<int,int>> bus_line_num = new Dictionary<int,IDictionary<int,int>>();
 
+        // 记录3/2断路器位置
+        private static IDictionary<string, int[]> breaker_location = new Dictionary<string,int[]>();
+
         // 保存电压等级
         private static int High_volt;
         private static int Mid_volt;
 
-        public static void Main(string[] args)
-        {
-            SCDResolver.init();
-            try
-            {
-                html.Load("base.html");
-                svg = html.SelectSingleNode("/html/body/svg");
+        //public static void Main(string[] args)
+        //{
+        //    SCDResolver.init();
+        //    try
+        //    {
+        //        html.Load("base.html");
+        //        svg = html.SelectSingleNode("/html/body/svg");
 
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.StackTrace);
-            }
+        //    }
+        //    catch (Exception e)
+        //    {
+        //        Console.WriteLine(e.StackTrace);
+        //    }
 
-            DrawTransformer();
-            html.Save("index.html");
-            Console.WriteLine("Draw done.");
+        //    DrawTransformer();
+        //    html.Save("index.html");
+        //    Console.WriteLine("Draw done.");
 
 
-            Console.ReadLine();
-        }
+        //    Console.ReadLine();
+        //}
 
         /// <summary>
         /// 通过解析得到的主变信息画出对应主变位置图，保存主变位置信息
@@ -189,7 +192,35 @@ namespace SCDVisual
         /// <param name="line">线路编号</param>
         private static void draw_one_half_line(string line)
         {
+            var breaker = SCDResolver.get_breakers(High_volt).ToArray();
+            // 先画断路器间隔
+            for(int i = 0; i < breaker.Count(); i++)
+            {
+                // 画断路器
+                draw_breaker(100 + 150 * i, 200);
+                // 记录断路器位置信息
+                breaker_location[breaker[i]] = new int[] { 100 + 150 * i, 200 };
+            }
 
+            var line_breaker = SCDResolver.line_breaker_relation[line].ToArray();
+            int x = breaker_location[line.Substring(0, 3)][0];
+            if (line_breaker.Contains(line))
+            {
+                int dy = line_breaker[0] == line ? 0 :10;
+            }
+            
+        }
+
+        private static void draw_breaker(int x,int y)
+        {
+            Dictionary<string, string> attrs = new Dictionary<string, string>() {
+                { "x",x.ToString() },
+                { "y",y.ToString() },
+                { "href","#Breaker-3" }
+            };
+            XmlElement ele = NewElement("use",attrs);
+
+            svg.AppendChild(ele);
         }
 
         /// <summary>
