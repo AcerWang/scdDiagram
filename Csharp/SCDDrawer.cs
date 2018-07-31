@@ -29,6 +29,9 @@ namespace SCDVisual
         // 记录3/2断路器位置
         private static IDictionary<string, int[]> breaker_location = new Dictionary<string,int[]>();
 
+        // 记录断路器间隔所接线路数
+        private static IDictionary<string, int> line_num_of_breaker = new Dictionary<string, int>();
+
         // 保存电压等级
         private static int High_volt;
         private static int Mid_volt;
@@ -156,6 +159,17 @@ namespace SCDVisual
             // 高压侧在500kV 及以上，用 3/2 画法
             if (High_volt >= 500)
             {
+                var breaker = SCDResolver.get_breakers(High_volt).ToArray();
+                // 先画断路器间隔
+                for (int i = 0; i < breaker.Count(); i++)
+                {
+                    // 画断路器
+                    draw_breaker(100 + 150 * i, 200);
+                    // 记录断路器位置信息
+                    breaker_location[breaker[i]] = new int[] { 100 + 150 * i, 200 };
+                }
+                
+                // 画线路
                 var iter = SCDResolver.lines[High_volt];
                 foreach(var line in iter)
                 {
@@ -192,25 +206,55 @@ namespace SCDVisual
         /// <param name="line">线路编号</param>
         private static void draw_one_half_line(string line)
         {
-            var breaker = SCDResolver.get_breakers(High_volt).ToArray();
-            // 先画断路器间隔
-            for(int i = 0; i < breaker.Count(); i++)
-            {
-                // 画断路器
-                draw_breaker(100 + 150 * i, 200);
-                // 记录断路器位置信息
-                breaker_location[breaker[i]] = new int[] { 100 + 150 * i, 200 };
-            }
-
+            // 线路所处的两个断路器
             var line_breaker = SCDResolver.line_breaker_relation[line].ToArray();
-            int x = breaker_location[line.Substring(0, 3)][0];
-            if (line_breaker.Contains(line))
+            var breaker = line_breaker[0].Substring(0, 3);
+            // 线路所联断路器的x坐标
+            int x = breaker_location[breaker][0];
+            string href = "#Line-3/2-L";
+
+            int[] b_no = new int[] {int.Parse(line_breaker[0].Substring(3,1)),int.Parse(line_breaker[1].Substring(3,1))};
+            int[] breaker_no = SCDResolver.breaker_no.ToArray();
+            // 纵坐标偏移量
+            int dy = 0;
+            // 确定纵坐标偏移量
+            if (b_no[0]==breaker_no[0])
+                dy = b_no[1] == breaker_no[1] ? 50 : 0;
+            
+            // 判断线路在断路器左侧还是右侧
+            if(line_num_of_breaker.ContainsKey(breaker))
             {
-                int dy = line_breaker[0] == line ? 0 :10;
+                x = x + 10;
+                href = "#Line-3/2-R"; // 左侧
+                line_num_of_breaker[breaker] = 2;
             }
+            else   // 左侧
+            {
+                line_num_of_breaker[breaker] = 1;
+                x = x - 10;
+            }
+            // 画线路
+            draw_3_2_line(x,50+dy,href);
             
         }
 
+        private static void draw_3_2_line(int x, int y, string href)
+        {
+            Dictionary<string, string> attrs = new Dictionary<string, string>() {
+                { "x",x.ToString() },
+                { "y",y.ToString() },
+                { "href",href }
+            };
+            XmlElement ele = NewElement("use", attrs);
+
+            svg.AppendChild(ele);
+        }
+
+        /// <summary>
+        /// 画3/2接线断路器间隔
+        /// </summary>
+        /// <param name="x">断路器间隔横坐标</param>
+        /// <param name="y">断路器间隔纵坐标</param>
         private static void draw_breaker(int x,int y)
         {
             Dictionary<string, string> attrs = new Dictionary<string, string>() {

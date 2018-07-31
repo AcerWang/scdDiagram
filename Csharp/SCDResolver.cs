@@ -21,6 +21,9 @@ namespace SCDVisual
         static Regex bus_seg_no = new Regex(@"([1-9]|[IVX]+)");
         static Regex ied_no = new Regex(@"(\d{4})");
 
+        // 3/2断路器尾号
+        public static ISet<int> breaker_no = new SortedSet<int>();
+
         // 主变信息
         public static IDictionary transformers;
 
@@ -521,7 +524,7 @@ namespace SCDVisual
         }
 
         /// <summary>
-        /// 获取500kV及以上线路与断路器的关系
+        /// 获取500kV及以上线路与断路器的关系，{"5001":["5011","5012"], "5002":["5022","5023"],...}
         /// </summary>
         /// <param name="line">线路编号</param>
         private static void GetLineToBreaker(string line)
@@ -546,7 +549,6 @@ namespace SCDVisual
                         line_breaker_relation[line] = new SortedSet<string>();
                     // 添加断路器编号到关系字典中
                     line_breaker_relation[line].Add(no);
-
                 }
                 if (line_breaker_relation[line].Count == 1)
                     line_breaker_relation[line].Add(line);
@@ -559,7 +561,7 @@ namespace SCDVisual
         }
 
         /// <summary>
-        /// 获取500kV及以上断路器间隔
+        /// 获取500kV及以上断路器间隔，["501","502","503",...]
         /// </summary>
         /// <param name="volt">电压等级</param>
         /// <returns>断路器间隔编号前3位的集合</returns>
@@ -576,8 +578,9 @@ namespace SCDVisual
             foreach(var info in breakers)
             {
                 // 获取断路器间隔编号，并添加到集合中
-                string b_no = breaker_reg.Match(info).Value.Substring(0,3);
-                break_seg.Add(b_no);
+                var b_no = breaker_reg.Match(info).Value;
+                break_seg.Add(b_no.Substring(0,3));
+                breaker_no.Add(int.Parse(b_no.Substring(3,1)));
             }
             return break_seg;
         }
