@@ -25,7 +25,7 @@ namespace SCDVisual
         public static ISet<int> breaker_no = new SortedSet<int>();
 
         // 主变信息
-        public static IDictionary transformers;
+        public static IDictionary<int,string> transformers;
 
         // 母线信息
         public static IDictionary<int, ISet<int>> buses;

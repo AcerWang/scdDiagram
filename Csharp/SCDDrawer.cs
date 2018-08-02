@@ -113,7 +113,7 @@ namespace SCDVisual
                     draw_single_bus(High_volt.ToString() + "kV", i, x, y, x + 1200, y);
                     // 存储位置信息
                     buses_location[High_volt] = new Dictionary<int, int[]>();
-                    buses_location[High_volt][i] = new int[] { x, y };
+                    buses_location[High_volt][i] = new int[] { x, y,x+1200 };
 
                     // 更新y坐标
                     y = y - 150;
@@ -201,6 +201,131 @@ namespace SCDVisual
         }
 
         /// <summary>
+        /// 画主变到母线或断路器的连接线
+        /// </summary>
+        private static void Draw_Connector()
+        {
+            // 高压侧是500kV及以上，则画连接的path
+            if (High_volt >= 500)
+            {
+                // ...
+            }
+            // 按普通画法
+            else
+            {
+                draw_single_side_connector(High_volt);
+            }
+
+            if (Mid_volt < 100)
+                return;
+            // 中压侧做法和高压侧一致
+            draw_single_side_connector(Mid_volt);
+        }
+
+        /// <summary>
+        ///  画单侧主变到母线的连接
+        /// </summary>
+        /// <param name="volt">电压等级</param>
+        private static void draw_single_side_connector(int volt)
+        {
+            string color = volt==High_volt? "red":"blue";
+            string href = volt == High_volt ? "#Join-U-" : "#Join-D-";
+            int j = 0;
+            foreach (var i in SCDResolver.transformers.Keys)
+            {
+                j++;
+                // 包含主变-母线关系
+                string trans_no = (volt * 10 + i).ToString();
+
+                // 找到关系，直接连接到高压母线数量的母线上
+                if (SCDResolver.trans_bus_relation.ContainsKey(trans_no))
+                {
+                    var bus_arr = SCDResolver.trans_bus_relation[trans_no];
+                    if (bus_arr.Count == 0)
+                    {
+                        int num = SCDResolver.buses[volt].Count;
+                        int[] cordination = buses_location[volt].First().Value;
+                        int seg_length = (cordination[0] + cordination[2]) / (SCDResolver.transformers.Count + 1);
+                        int x = 50 + seg_length * j;
+                        int y = num == 1 ? cordination[1] : cordination[1] - 42;
+                        href = num == 1 ? href+"1" : href+"2";
+                        draw_join(x, y, color, href);
+                    }
+                    // 连接到一段母线，或并联的母线上
+                    else
+                    {
+                        var m = calc_bus_num_of_trans(volt);
+                        int[] cord = buses_location[volt][bus_arr.First()];
+                        int x = 0, y = bus_arr.Count == 1 ? cord[1] : cord[1] - 42;
+                        href = bus_arr.Count == 1 ? href + "1" : href + "2";
+                        if (m[bus_arr.First()] == 1)
+                        {
+                            int part_len = (cord[0] + cord[2]) / 2;
+                            x = cord[0] + part_len;
+                            j = 0;
+                        }
+                        else
+                        {
+                            int part_len = (cord[0] + cord[2]) / (m[bus_arr.First()] + 1);
+                            x = cord[0] + part_len * j;
+                        }
+                        draw_join(x, y, color, href);
+                    }
+                }
+                // 无母线-主变连接关系
+                else
+                {
+                    int num = SCDResolver.buses[volt].Count;
+                    int[] cordination = buses_location[volt].First().Value;
+                    int seg_length = (cordination[0] + cordination[2]) / (SCDResolver.transformers.Count + 1);
+                    int x = 50 + seg_length * j;
+                    int y = num == 1 ? cordination[1] : cordination[1] - 42;
+                    href = num == 1 ? href + "1" : href + "2";
+                    draw_join(x, y, color, href);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 计算某电压侧各母线上接的主变数量
+        /// </summary>
+        /// <param name="volt">电压等级</param>
+        /// <returns>返回`母线-主变数量`的字典</returns>
+        private static IDictionary<int,int> calc_bus_num_of_trans(int volt)
+        {
+            IDictionary<int, int> dict = new SortedDictionary<int, int>();
+            foreach (var t in SCDResolver.transformers.Keys)
+            {
+                var trans_no = (volt * 10 + t).ToString();
+                var bus = SCDResolver.trans_bus_relation[trans_no].First();
+                if (!dict.ContainsKey(bus))
+                    dict[bus] = 1;
+                else
+                    dict[bus]++;
+            }
+            return dict;
+        }
+
+        /// <summary>
+        /// 画主变到母线的连接线
+        /// </summary>
+        /// <param name="x">连接线的x坐标</param>
+        /// <param name="y">连接线的y坐标</param>
+        /// <param name="color">连接线的颜色</param>
+        /// <param name="href">引用的连接线</param>
+        private static void draw_join(int x, int y, string color, string href)
+        {
+            Dictionary<string, string> attrs = new Dictionary<string, string>() {
+                { "x",x.ToString() },
+                { "y",y.ToString() },
+                { "color",color },
+                { "href",href }
+            };
+            XmlElement ele = NewElement("use", attrs);
+            svg.AppendChild(ele);
+        }
+
+        /// <summary>
         /// 画3/2接线
         /// </summary>
         /// <param name="line">线路编号</param>
@@ -238,6 +363,12 @@ namespace SCDVisual
             
         }
 
+        /// <summary>
+        /// 画3/2接线
+        /// </summary>
+        /// <param name="x">线路的起点x坐标</param>
+        /// <param name="y">线路的起点y坐标</param>
+        /// <param name="href">引用的线路</param>
         private static void draw_3_2_line(int x, int y, string href)
         {
             Dictionary<string, string> attrs = new Dictionary<string, string>() {
@@ -380,7 +511,7 @@ namespace SCDVisual
                     // 存储坐标
                     if (!buses_location.ContainsKey(Side))
                         buses_location[Side] = new Dictionary<int, int[]>();
-                    buses_location[Side][i] = new int[] { x, y };
+                    buses_location[Side][i] = new int[] { x, y, x+seg_length };
 
                     // 更新x坐标
                     x = x + seg_length + 50;
@@ -407,7 +538,7 @@ namespace SCDVisual
                         // 存储母线位置
                         if (!buses_location.ContainsKey(Side))
                             buses_location[Side] = new Dictionary<int, int[]>();
-                        buses_location[Side][i] = new int[] { x, y };
+                        buses_location[Side][i] = new int[] { x, y,x+1200 };
 
                         // 调整坐标
                         y = y + dy;
@@ -433,7 +564,7 @@ namespace SCDVisual
                         // 保存母线位置信息
                         if (!buses_location.ContainsKey(Side))
                             buses_location[Side] = new Dictionary<int, int[]>();
-                        buses_location[Side][item.Key] = new int[] { x, y };
+                        buses_location[Side][item.Key] = new int[] { x, y,x+seg_length };
                         // 调整坐标
                         y = y - 40;
                         int partLen = (seg_length - (item.Value.Count - 1) * 50) / item.Value.Count;
@@ -445,7 +576,7 @@ namespace SCDVisual
                             // 画母线
                             draw_single_bus(Side.ToString() + "kV", i, x, y, x2, y, color);
                             // 保存母线位置信息
-                            buses_location[Side][i] = new int[] { x, y };
+                            buses_location[Side][i] = new int[] { x, y, x2 };
                             // 调整坐标
                             x = x2 + 50;
                             x2 = x + partLen;
@@ -487,7 +618,7 @@ namespace SCDVisual
                         draw_single_bus(Side.ToString() + "kV", i, x, y, x + 600, y, color);
                         draw_text(SCDResolver.c_index[i], x - 20, y + 5);
                         // 记录位置信息
-                        buses_location[Side][i] = new int[] { x, y };
+                        buses_location[Side][i] = new int[] { x, y, x+600};
                     }
                     // 调整坐标
                     x += 650;
@@ -538,7 +669,7 @@ namespace SCDVisual
                                 draw_text(SCDResolver.c_index[i], x - 20, y + 5, "red");
 
                                 // 记录位置信息
-                                buses_location[Side][i] = new int[] { x, y };
+                                buses_location[Side][i] = new int[] { x, y, x+part_len};
                             }
                             // 调整x坐标
                             x = x + part_len + 50;
@@ -576,7 +707,7 @@ namespace SCDVisual
                                 draw_text(SCDResolver.c_index[i], x - 20, y + 5, "red");
 
                                 // 记录位置信息
-                                buses_location[Side][i] = new int[] { x, y };
+                                buses_location[Side][i] = new int[] { x, y, x+part_len};
                             }
                             // 调整坐标
                             x = x + part_len + 50;
