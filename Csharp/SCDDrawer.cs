@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml;
+using System.Text;
 
 namespace SCDVisual
 {
@@ -208,7 +209,21 @@ namespace SCDVisual
             // 高压侧是500kV及以上，则画连接的path
             if (High_volt >= 500)
             {
-                // ...
+                int[] breaker_no = SCDResolver.breaker_no.ToArray();
+                // 纵坐标偏移量
+                int dy = 0;
+                foreach(var kv in SCDResolver.trans_breaker_relation)
+                {
+                    // 将断路器编号的最后一位转化为数字
+                    var b_no = kv.Value.Select(e => int.Parse(e.Last().ToString())).ToArray();
+                    // 确定纵坐标偏移量
+                    if (b_no[0] == breaker_no[0])
+                        dy = b_no[1] == breaker_no[1] ? 0 : 50;
+                    int x1 = breaker_location[kv.Value.First().Substring(0, 3)][0];
+                    int y1 = 190 + dy;
+                    int x2 = trans_location[kv.Key][0], y2 = trans_location[kv.Key][1];
+                    draw_trans_path(x1, y1, x2, y2);
+                }
             }
             // 按普通画法
             else
@@ -230,6 +245,7 @@ namespace SCDVisual
         {
             string color = volt==High_volt? "red":"blue";
             string href = volt == High_volt ? "#Join-U-" : "#Join-D-";
+            int dy = volt == High_volt ? -40 : 40;
             int j = 0;
             foreach (var i in SCDResolver.transformers.Keys)
             {
@@ -250,6 +266,7 @@ namespace SCDVisual
                         int y = num == 1 ? cordination[1] : cordination[1] - 42;
                         href = num == 1 ? href+"1" : href+"2";
                         draw_join(x, y, color, href);
+                        draw_path(trans_location[i][0],trans_location[i][1],x,y+dy,color);
                     }
                     // 连接到一段母线，或并联的母线上
                     else
@@ -270,6 +287,7 @@ namespace SCDVisual
                             x = cord[0] + part_len * j;
                         }
                         draw_join(x, y, color, href);
+                        draw_path(trans_location[i][0], trans_location[i][1], x, y + dy, color);
                     }
                 }
                 // 无母线-主变连接关系
@@ -282,6 +300,7 @@ namespace SCDVisual
                     int y = num == 1 ? cordination[1] : cordination[1] - 42;
                     href = num == 1 ? href + "1" : href + "2";
                     draw_join(x, y, color, href);
+                    draw_path(trans_location[i][0], trans_location[i][1], x, y + dy, color);
                 }
             }
         }
@@ -337,7 +356,8 @@ namespace SCDVisual
             // 线路所联断路器的x坐标
             int x = breaker_location[breaker][0];
             string href = "#Line-3/2-L";
-
+            
+            // 所处两个断路器编号的最后一位数字
             int[] b_no = new int[] {int.Parse(line_breaker[0].Substring(3,1)),int.Parse(line_breaker[1].Substring(3,1))};
             int[] breaker_no = SCDResolver.breaker_no.ToArray();
             // 纵坐标偏移量
@@ -920,6 +940,59 @@ namespace SCDVisual
                 }
             }
             return res;
+        }
+
+        /// <summary>
+        /// 画主变到母线路径
+        /// </summary>
+        /// <param name="x1">起点横坐标</param>
+        /// <param name="y1">起点纵坐标</param>
+        /// <param name="x2">终点横坐标</param>
+        /// <param name="y2">终点纵坐标</param>
+        private static void draw_path(int x1, int y1, int x2, int y2, string color)
+        {
+            int dy = (y1 + y2) / 2;
+
+            StringBuilder sb = new StringBuilder("M ");
+            sb.Append(x1.ToString() + " " + y1.ToString());
+            sb.Append("L "+x1.ToString()+" "+dy.ToString());
+            sb.Append("L " + x2.ToString() + " " + dy.ToString());
+            sb.Append("L " + x2.ToString() + " " + y2.ToString());
+
+            Dictionary<string, string> attrs = new Dictionary<string, string>() {
+                { "p", sb.ToString() },
+                { "fill-opacity","0.0" },
+                { "stroke",color }
+            };
+            XmlElement ele = NewElement("path", attrs);
+            svg.AppendChild(ele);
+        }
+
+        /// <summary>
+        /// 画主变到断路器的路径
+        /// </summary>
+        /// <param name="x1">起点横坐标</param>
+        /// <param name="y1">起点纵坐标</param>
+        /// <param name="x2">终点横坐标</param>
+        /// <param name="y2">终点纵坐标</param>
+        private static void draw_trans_path(int x1, int y1, int x2, int y2)
+        {
+            int dy = (y1 + y2) / 2;
+
+            StringBuilder sb = new StringBuilder("M ");
+            sb.Append(x1.ToString() + " " + y1.ToString());
+            sb.Append("L " + (x1+50).ToString() + " " + y1.ToString());
+            sb.Append("L " + (x1+50).ToString() + " " + dy.ToString());
+            sb.Append("L " + x2.ToString() + " " + dy.ToString());
+            sb.Append("L " + x2.ToString() + " " + y2.ToString());
+
+            Dictionary<string, string> attrs = new Dictionary<string, string>() {
+                { "p", sb.ToString() },
+                { "fill-opacity","0.0" },
+                { "stroke","red" }
+            };
+            XmlElement ele = NewElement("path", attrs);
+            svg.AppendChild(ele);
         }
     }
 }

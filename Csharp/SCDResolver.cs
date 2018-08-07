@@ -42,6 +42,9 @@ namespace SCDVisual
         // 线路-断路器连接关系信息
         public static IDictionary<string, ISet<string>> line_breaker_relation = new Dictionary<string, ISet<string>>();
 
+        // 主变-断路器连接关系信息
+        public static IDictionary<int, ISet<string>> trans_breaker_relation = new Dictionary<int, ISet<string>>();
+
         // 主变-母线连接关系信息
         public static IDictionary<string, ISet<int>> trans_bus_relation;
 
@@ -69,13 +72,14 @@ namespace SCDVisual
 
                 lines = GetLines();
                // transformers = GetTransformers();
-               // buses = GetBuses();
+                buses = GetBuses();
 
                 // buses_relation = GetBusRelation();
                 var line_bus = GetLineToBus();
-                var line_breker = line_breaker_relation;
+                //var line_breker = line_breaker_relation;
                 //trans_bus_relation = GetTransToBus();
-
+                GetTransToBreaker();
+                var t_b = trans_breaker_relation;
                 stop.Stop();
                 //Task.WaitAll();
                 Console.WriteLine(stop.Elapsed.TotalMilliseconds);
@@ -517,7 +521,7 @@ namespace SCDVisual
 
                 FindReference(item, trans_dic);
 
-                Console.WriteLine(name);
+                // Console.WriteLine(name);
             }
 
             return trans_dic;
@@ -529,7 +533,7 @@ namespace SCDVisual
         /// <param name="line">线路编号</param>
         private static void GetLineToBreaker(string line)
         {
-            Regex prot_reg = new Regex(@"P.*L"+line);
+            Regex prot_reg = new Regex(@"^P.*L"+line);
 
             try
             {
@@ -558,6 +562,51 @@ namespace SCDVisual
                 return;
             }
             
+        }
+
+        /// <summary>
+        /// 获取500kV及以上变压器与断路器的连接关系
+        /// </summary>
+        private static void GetTransToBreaker()
+        {
+            // 正则匹配表达式
+            Regex prot_reg = new Regex(@"P[T|(ZB)].*\d{1,4}");
+            Regex reg_no = new Regex(@"\d{1,}");
+            // 主变保护IED过滤列表
+            var trans = IEDList.Where(e => prot_reg.IsMatch(e.GetAttribute("name")) && e.GetAttribute("desc").Contains("主变") && e.GetAttribute("desc").Contains("保护")).Select(ied => ied);
+            
+            // 遍历主变保护IED
+            foreach(var item in trans)
+            {
+                try
+                {   
+                    // 保护IED名称，编号
+                    string ied_name = item.GetAttribute("name");
+                    var trans_no =int.Parse(reg_no.Match(ied_name).Value.Last().ToString());
+
+                    if (trans_breaker_relation.ContainsKey(trans_no))
+                        continue;
+                    trans_breaker_relation[trans_no] = new SortedSet<string>();
+                    // 保护IED下面的对应引用Ext_Refs节点
+                    var breaker_ext_refs = item.SelectNodes("//ns:IED[@name='" + ied_name + "'][1]/ns:AccessPoint[starts-with(@name,'G')][1]/ns:Server/ns:LDevice[starts-with(@inst,'PI')][1]/ns:LN0[1]/ns:Inputs[1]/ns:ExtRef", nsmgr).OfType<XmlNode>();
+                    // 遍历对应的ExtRef节点
+                    foreach (XmlElement ele in breaker_ext_refs)
+                    {   
+                        // 获取引用IED名称，编号
+                        var ext_ied = ele.GetAttribute("iedName");
+                        var no = ied_no.Match(ext_ied).Value;
+
+                        if (int.Parse(no.Substring(0, 2)) < 50 || no[2] == '0')
+                            continue;
+                        // 添加到对应主变高压侧关系对象中
+                        trans_breaker_relation[trans_no].Add(no);
+                    }
+                }
+                catch (Exception e)
+                {
+                    return;
+                }
+            }
         }
 
         /// <summary>
