@@ -10,16 +10,24 @@ namespace SCDVisual
 {
     class SCDResolver
     {
+        // xml文件名称
         const string xml_file_path = "MLB.scd";
+        // IED的name，desc信息
         static private List<string[]> IEDsInfo = new List<string[]>();
+        // IED节点信息
         static private List<XmlElement> IEDList = new List<XmlElement>();
+        // xml的namespace管理器
         static private XmlNamespaceManager nsmgr;
-
+        // 编号对比查询数组
         public static string[] d_index = new[] { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" };
         public static string[] c_index = new[] { "O", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX" };
-
+        // 公用正则表达式
         static Regex bus_seg_no = new Regex(@"([1-9]|[IVX]+)");
         static Regex ied_no = new Regex(@"(\d{4})");
+
+        // 高压侧、中压侧电压
+        public static int High_Volt;
+        public static int Mid_Volt;
 
         // 3/2断路器尾号
         public static ISet<int> breaker_no = new SortedSet<int>();
@@ -33,6 +41,9 @@ namespace SCDVisual
         // 线路信息
         public static IDictionary<int, IDictionary<string, string>> lines;
 
+        // 断路器信息
+        public static ISet<string> breakers;
+
         // 母线关系信息
         public static IDictionary<int, IDictionary<string, IDictionary<string, int[]>>> buses_relation;
 
@@ -43,15 +54,10 @@ namespace SCDVisual
         public static IDictionary<string, ISet<string>> line_breaker_relation = new Dictionary<string, ISet<string>>();
 
         // 主变-断路器连接关系信息
-        public static IDictionary<int, ISet<string>> trans_breaker_relation = new Dictionary<int, ISet<string>>();
+        public static IDictionary<int, ISet<string>> trans_breaker_relation;
 
         // 主变-母线连接关系信息
         public static IDictionary<string, ISet<int>> trans_bus_relation;
-
-        public static void Main(string[] args)
-        {
-            init();
-        }
 
         /// <summary>
         /// 启动初始化，获取各参数信息
@@ -63,27 +69,48 @@ namespace SCDVisual
             try
             {
                 XmlDocument xmlDoc = new XmlDocument();
+                // 加载xml文件
                 xmlDoc.Load(xml_file_path);
+                // 添加namespace
                 nsmgr = new XmlNamespaceManager(xmlDoc.NameTable);
                 nsmgr.AddNamespace("ns", "http://www.iec.ch/61850/2003/SCL");
+                // 解析出IED的信息
                 GetIEDsInfo(xmlDoc);
 
                 stop.Start();
-
+                // 获取线路
                 lines = GetLines();
-               // transformers = GetTransformers();
-                buses = GetBuses();
 
-                // buses_relation = GetBusRelation();
-                var line_bus = GetLineToBus();
-                //var line_breker = line_breaker_relation;
-                //trans_bus_relation = GetTransToBus();
-                GetTransToBreaker();
-                var t_b = trans_breaker_relation;
+                // 获取主变
+                transformers = GetTransformers();
+                
+                // 获取母线
+                buses = GetBuses();
+                
+                // 获取`母线-母线`关系
+                buses_relation = GetBusRelation();
+                
+                // 获取`线路-母线`关系
+                line_bus_relation = GetLineToBus();
+                
+                
+                // 获取`主变-母线`的关系
+                trans_bus_relation = GetTransToBus();
+
+                if (High_Volt >= 500)
+                {
+                    // 500kV及以上`线路-断路器`的关系，500kV及以上使用
+                    var line_breker = line_breaker_relation;
+                
+                    // 获取500kV及以上高压侧`主变-断路器`的关系，500kV及以上使用
+                    trans_breaker_relation = GetTransToBreaker();
+
+                    // 获取断路器
+                    breakers = GetBreakers();
+                }
+                
                 stop.Stop();
-                //Task.WaitAll();
                 Console.WriteLine(stop.Elapsed.TotalMilliseconds);
-                Console.ReadLine();
             }
             catch (Exception e)
             {
@@ -120,7 +147,7 @@ namespace SCDVisual
         /// <return>
         /// 主变的编号，描述
         /// </return>
-        private static IDictionary GetTransformers()
+        private static IDictionary<int,string> GetTransformers()
         {
             Regex reg = new Regex(@"(\d{3,})");
             
@@ -171,11 +198,10 @@ namespace SCDVisual
             Regex reg = new Regex(@"(\d{3,})");
 
             var buses = IEDsInfo.Where(ied => ied[0].StartsWith("CM")).Select(ied => ied);
+            
+            // 没有线路信息，直接返回
             if (buses.Count() == 0)
-            {
-                Console.WriteLine("未找到母线相关信息");
                 return null;
-            }
 
             var m_buses = new SortedDictionary<int, ISet<int>>();
 
@@ -207,12 +233,19 @@ namespace SCDVisual
                         m_buses[level].Add(n);
                     }
                 }
+
+                List<int> volts = m_buses.Keys.ToList();
+                // 获取高，中压等级电压
+                High_Volt = volts.Max();
+                volts.Remove(High_Volt);
+                Mid_Volt = volts.Max();
             }
             catch(Exception e)
             {
                 m_buses = null;
                 Console.WriteLine(e.StackTrace);
             }
+
             return m_buses;
         }
 
@@ -224,32 +257,36 @@ namespace SCDVisual
         /// </returns>
         private static SortedDictionary<int, IDictionary<string, string>> GetLines()
         {
+            // 线路匹配正则表达式
             Regex line_no = new Regex(@"^[PS].*L(\d{4})");
             Regex line_name = new Regex(@"(\d{2,4}\D{2,}\d?\D*?线路?\d*)|(\D*线\d*)");
-
+            
+            // 线路IEDs
             var lines = IEDsInfo.Where(ied => line_no.IsMatch(ied[0]) && line_name.IsMatch(ied[1])).Select(ied => ied);
             if (lines.Count() == 0)
-            {
                 return null;
-            }
 
             var m_lines = new SortedDictionary<int, IDictionary<string, string>>();
             var low_level = new[] { 10, 35, 66 };
-
+            
+            // 遍历线路IED
             foreach (var item in lines)
             {
+                // 获得线路编号和名称
                 var l_no = line_no.Match(item[0]).Groups[1].Value;
                 var l_name = line_name.Match(item[1]).Value;
 
-                // 低压的去除
+                // 去除低压线路
                 var level = int.Parse(l_no.Substring(0, 2));
                 level = low_level.Contains(level) ? level : level * 10;
 
                 if (!m_lines.ContainsKey(level))
                 {
+                    // 新增线路到存储结构中
                     var dic = new SortedDictionary<string, string>();
                     m_lines[level] = dic;
                 }
+                // 添加线路信息
                 m_lines[level][l_no] = l_name;
 
             }
@@ -389,7 +426,6 @@ namespace SCDVisual
 
             var all_lines = lines.SelectMany(line => line.Value.Keys).Select(name => name).ToArray();
 
-
             // 获得一个线路合并单元的可迭代对象
             var mu_ieds = IEDList.Where(ele => reg.IsMatch(ele.GetAttribute("name"))).Select(ied => ied);
 
@@ -513,15 +549,15 @@ namespace SCDVisual
                 var low_evel = new[] { 0, 10, 35, 66 };
                 if (low_evel.Contains(level))
                     continue;
-
+                
+                // 关系字典中存在该主变，跳过
                 if (trans_dic.ContainsKey(name))
                     continue;
-
+                
+                // 添加主变到存储结构中
                 trans_dic[name] = new SortedSet<int>();
-
+                // 查找该主变关联的母线
                 FindReference(item, trans_dic);
-
-                // Console.WriteLine(name);
             }
 
             return trans_dic;
@@ -537,11 +573,14 @@ namespace SCDVisual
 
             try
             {
+                // 过滤出线路保护IED
                 var line_prot_ied = IEDList.Where(ied => prot_reg.IsMatch(ied.GetAttribute("name"))).OfType<XmlElement>().First();
+                // 线路保护IED的引用Ext_Ref
                 var breaker_ext_refs =line_prot_ied.SelectNodes("//ns:IED[@name='" + line_prot_ied.GetAttribute("name") + "'][1]/ns:AccessPoint[starts-with(@name,'M')][1]/ns:Server/ns:LDevice[contains(@inst,'SV')][1]/ns:LN0[1]/ns:Inputs[1]/ns:ExtRef", nsmgr).OfType<XmlNode>().ToArray();
-                // 线路对应的ExtRef节点
+                // 遍历线路对应的ExtRef节点
                 foreach(XmlElement ele in breaker_ext_refs)
                 {
+                    // 引用IED名称，编号
                     var ied_name = ele.GetAttribute("iedName");
                     var no = ied_no.Match(ied_name).Value;
                     // 匹配IED编号
@@ -554,6 +593,7 @@ namespace SCDVisual
                     // 添加断路器编号到关系字典中
                     line_breaker_relation[line].Add(no);
                 }
+                // 只找到一个外部IED，就再加上自身
                 if (line_breaker_relation[line].Count == 1)
                     line_breaker_relation[line].Add(line);
             }
@@ -565,18 +605,20 @@ namespace SCDVisual
         }
 
         /// <summary>
-        /// 获取500kV及以上变压器与断路器的连接关系
+        /// 获取500kV及以上变压器与断路器的连接关系，{1:["5021","5022"],2:["5042","5043"],...}
         /// </summary>
-        private static void GetTransToBreaker()
+        /// <returns>按 `主变序号-所连接断路器编号` 组成键值对</returns>
+        private static IDictionary<int,ISet<string>> GetTransToBreaker()
         {
             // 正则匹配表达式
             Regex prot_reg = new Regex(@"P[T|(ZB)].*\d{1,4}");
             Regex reg_no = new Regex(@"\d{1,}");
             // 主变保护IED过滤列表
             var trans = IEDList.Where(e => prot_reg.IsMatch(e.GetAttribute("name")) && e.GetAttribute("desc").Contains("主变") && e.GetAttribute("desc").Contains("保护")).Select(ied => ied);
-            
+
+            var trans_breaker_relation = new Dictionary<int, ISet<string>>();
             // 遍历主变保护IED
-            foreach(var item in trans)
+            foreach (var item in trans)
             {
                 try
                 {   
@@ -604,9 +646,10 @@ namespace SCDVisual
                 }
                 catch (Exception e)
                 {
-                    return;
+                    return null;
                 }
             }
+            return trans_breaker_relation;
         }
 
         /// <summary>
@@ -614,11 +657,11 @@ namespace SCDVisual
         /// </summary>
         /// <param name="volt">电压等级</param>
         /// <returns>断路器间隔编号前3位的集合</returns>
-        public static ISet<string> get_breakers(int volt)
+        private static ISet<string> GetBreakers()
         {
             // 匹配规则
-            string str_volt = volt.ToString().Substring(0, 2);
-            Regex breaker_reg = new Regex(str_volt + @"[1-9]{2}");
+            string str_volt = High_Volt.ToString().Substring(0, 2);
+            Regex breaker_reg = new Regex(str_volt + @"[1-9]\d");
             
             // 高压IED信息
             var breakers = IEDsInfo.Where(info => breaker_reg.IsMatch(info[0])).Select(info=>info[0]);

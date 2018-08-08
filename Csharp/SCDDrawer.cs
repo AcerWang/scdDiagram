@@ -37,27 +37,45 @@ namespace SCDVisual
         private static int High_volt;
         private static int Mid_volt;
 
-        //public static void Main(string[] args)
-        //{
-        //    SCDResolver.init();
-        //    try
-        //    {
-        //        html.Load("base.html");
-        //        svg = html.SelectSingleNode("/html/body/svg");
+        public static void Main(string[] args)
+        {
+            SCDResolver.init();
+            High_volt = SCDResolver.High_Volt;
+            Mid_volt = SCDResolver.Mid_Volt;
+            try
+            {
+                // 加载模板
+                html.Load("base.html");
+                svg = html.SelectSingleNode("/html/body/svg");
 
-        //    }
-        //    catch (Exception e)
-        //    {
-        //        Console.WriteLine(e.StackTrace);
-        //    }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.StackTrace);
+                return;
+            }
+            
+            // 画主变
+            DrawTransformer();
 
-        //    DrawTransformer();
-        //    html.Save("index.html");
-        //    Console.WriteLine("Draw done.");
+            // 画母联母线
+            Draw_Bus_Seg();
 
+            // 画分段母线
+            Draw_Bus_Union();
 
-        //    Console.ReadLine();
-        //}
+            // 画线路
+            Draw_Lines();
+
+            // 画连接线
+            Draw_Connector();
+
+            // 输出到HTML文件
+            html.Save("index.html");
+
+            Console.WriteLine("Draw done.");
+            Console.ReadLine();
+        }
 
         /// <summary>
         /// 通过解析得到的主变信息画出对应主变位置图，保存主变位置信息
@@ -160,7 +178,7 @@ namespace SCDVisual
             // 高压侧在500kV 及以上，用 3/2 画法
             if (High_volt >= 500)
             {
-                var breaker = SCDResolver.get_breakers(High_volt).ToArray();
+                var breaker = SCDResolver.breakers.ToArray();
                 // 先画断路器间隔
                 for (int i = 0; i < breaker.Count(); i++)
                 {
