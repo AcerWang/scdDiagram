@@ -11,7 +11,7 @@ namespace SCDVisual
     class SCDResolver
     {
         // xml文件名称
-        const string xml_file_path = "MLB.scd";
+        const string xml_file_path = "BZB.scd";
         // IED的name，desc信息
         static private List<string[]> IEDsInfo = new List<string[]>();
         // IED节点信息
@@ -74,24 +74,35 @@ namespace SCDVisual
                 // 添加namespace
                 nsmgr = new XmlNamespaceManager(xmlDoc.NameTable);
                 nsmgr.AddNamespace("ns", "http://www.iec.ch/61850/2003/SCL");
+
                 // 解析出IED的信息
                 GetIEDsInfo(xmlDoc);
 
                 stop.Start();
-                // 获取线路
-                lines = GetLines();
-
                 // 获取主变
-                transformers = GetTransformers();
-                
+                transformers = Task<Object>.Run(() => GetTransformers()).Result;
+
+                // 获取线路
+                lines = Task<Object>.Run(() => GetLines()).Result;
+
                 // 获取母线
-                buses = GetBuses();
-                
+                buses = Task<Object>.Run(() => GetBuses()).Result;
+
                 // 获取`母线-母线`关系
-                buses_relation = GetBusRelation();
-                
+                buses_relation = Task<Object>.Run(() => GetBusRelation()).Result;
+
+                Task.WaitAll();
+                stop.Stop();
+                var t1 = stop.Elapsed.TotalMilliseconds;
+
+                stop.Start();
+
                 // 获取`线路-母线`关系
-                line_bus_relation = GetLineToBus();
+                line_bus_relation =  GetLineToBus();
+
+                stop.Stop();
+                var span = stop.Elapsed.TotalMilliseconds;
+                
                 
                 
                 // 获取`主变-母线`的关系
@@ -148,27 +159,23 @@ namespace SCDVisual
         /// 主变的编号，描述
         /// </return>
         private static IDictionary<int,string> GetTransformers()
-        {
-            Regex reg = new Regex(@"(\d{3,})");
-            
+        {            
             // 存储主变的数据结构
             var m_trans = new SortedDictionary<int, string>();
             
             // 包含主变信息的IED节点
-            var trans = IEDsInfo.Where(ied => ied[1].Contains("主变") && ied[1].Contains("测控")).Select(ied => ied);
+            var trans = IEDsInfo.Where(ied => ied_no.IsMatch(ied[0]) && ied[1].Contains("主变")).Select(ied => ied);
             try
             {
                 // 遍历主变信息IED节点
                 foreach (var info in trans)
                 {
                     // 获取主变的编号信息
-                    Match m = reg.Match(info[0]);
-                    var key = Convert.ToInt32(m.Groups[1].Value.Last()) - 48;
+                    string m = ied_no.Match(info[0]).Value;
+                    var key = int.Parse(m.Last().ToString());
                     // 存储器中是否包含该编号的主变信息。没有==>则添加
-                    if (m.Groups[1].Value != "" && !m_trans.ContainsKey(key))
-                    {
+                    if (m != "" && !m_trans.ContainsKey(key))
                         m_trans[key] = key.ToString() + "#";
-                    }
                 }
             }
             catch(Exception e)
@@ -176,15 +183,10 @@ namespace SCDVisual
                 Console.WriteLine(e.StackTrace);
             }
 
+            // 没有查找到主变相关信息！
             if (m_trans.Count == 0)
-            {
-                // Console.WriteLine("没有查找到主变相关信息！");
-                return null;
-            }
-            else
-            {
-                return m_trans;
-            }
+                m_trans = null;
+            return m_trans;
         }
 
         /// <summary>
@@ -431,8 +433,7 @@ namespace SCDVisual
 
             Dictionary<string, ISet<int>> line_bus_dic = new Dictionary<string, ISet<int>>();
 
-            foreach (XmlElement e in mu_ieds)
-            {
+            Parallel.ForEach(mu_ieds, (e, loopState) => {
                 // MU 的 IED 的 `name`
                 var name = e.GetAttribute("name");
                 // 线路编号, e.g `2202`
@@ -441,19 +442,47 @@ namespace SCDVisual
 
                 // 过滤掉非线路和过掉以处理过的线路
                 if (!all_lines.Contains(line) || line_bus_dic.ContainsKey(line))
-                    continue;
+                {
+                    //loopState.Break();
+                    return;
+                }
                 // 500kV及以上高压部分，获取其与断路器的关系
-                if (int.Parse(line.Substring(0, 2))*10>=500)
+                if (int.Parse(line.Substring(0, 2)) * 10 >= 500)
                 {
                     GetLineToBreaker(line);
-                    continue;
+                    //loopState.Break();
+                    return;
                 }
                 // 新线路，生成新的存储结构
                 line_bus_dic[line] = line_bus_dic.ContainsKey(line) ? line_bus_dic[line] : new SortedSet<int>();
 
                 // 获取该线路MU对应的外部母线引用
-                FindReference(e,line_bus_dic);
-            }
+                FindReference(e, line_bus_dic);
+            });
+
+            //foreach (XmlElement e in mu_ieds)
+            //{
+            //    // MU 的 IED 的 `name`
+            //    var name = e.GetAttribute("name");
+            //    // 线路编号, e.g `2202`
+            //    var line = reg.Match(name).Value;
+            //    line = reg.Split(line)[1];
+
+            //    // 过滤掉非线路和过掉以处理过的线路
+            //    if (!all_lines.Contains(line) || line_bus_dic.ContainsKey(line))
+            //        continue;
+            //    // 500kV及以上高压部分，获取其与断路器的关系
+            //    if (int.Parse(line.Substring(0, 2))*10>=500)
+            //    {
+            //        GetLineToBreaker(line);
+            //        continue;
+            //    }
+            //    // 新线路，生成新的存储结构
+            //    line_bus_dic[line] = line_bus_dic.ContainsKey(line) ? line_bus_dic[line] : new SortedSet<int>();
+
+            //    // 获取该线路MU对应的外部母线引用
+            //    FindReference(e,line_bus_dic);
+            //}
 
             //Console.WriteLine("pass");
             return line_bus_dic;
@@ -540,7 +569,7 @@ namespace SCDVisual
             var trans_dic = new Dictionary<string, ISet<int>>();
 
             // 获取主变各侧的ExtRef节点，解析得到所连接的母线
-            foreach (XmlElement item in trans)
+            Parallel.ForEach(trans, (item,ParallelLoopState) =>
             {
                 var name = ied_no.Match(item.GetAttribute("name")).Value;
                 var level = int.Parse(name.Substring(0, 2));
@@ -548,17 +577,37 @@ namespace SCDVisual
                 // 低压部分，已存在字典中，直接跳过
                 var low_evel = new[] { 0, 10, 35, 66 };
                 if (low_evel.Contains(level))
-                    continue;
-                
+                    ParallelLoopState.Break();
+
                 // 关系字典中存在该主变，跳过
                 if (trans_dic.ContainsKey(name))
-                    continue;
-                
+                    ParallelLoopState.Break();
+
                 // 添加主变到存储结构中
                 trans_dic[name] = new SortedSet<int>();
                 // 查找该主变关联的母线
                 FindReference(item, trans_dic);
-            }
+
+            });
+            //foreach (XmlElement item in trans)
+            //{
+            //    var name = ied_no.Match(item.GetAttribute("name")).Value;
+            //    var level = int.Parse(name.Substring(0, 2));
+
+            //    // 低压部分，已存在字典中，直接跳过
+            //    var low_evel = new[] { 0, 10, 35, 66 };
+            //    if (low_evel.Contains(level))
+            //        continue;
+                
+            //    // 关系字典中存在该主变，跳过
+            //    if (trans_dic.ContainsKey(name))
+            //        continue;
+                
+            //    // 添加主变到存储结构中
+            //    trans_dic[name] = new SortedSet<int>();
+            //    // 查找该主变关联的母线
+            //    FindReference(item, trans_dic);
+            //}
 
             return trans_dic;
         }
