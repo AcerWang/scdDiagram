@@ -54,7 +54,8 @@ namespace SCDVisual
                 Console.WriteLine(e.StackTrace);
                 return;
             }
-            
+            System.Diagnostics.Stopwatch stop = new System.Diagnostics.Stopwatch();
+            stop.Start();
             // 画主变
             DrawTransformer();
 
@@ -63,15 +64,17 @@ namespace SCDVisual
 
             // 画分段母线
             Draw_Bus_Union();
-
             // 画线路
             Draw_Lines();
 
+            // 输出到HTML文件
+            html.Save("index.html");
+            stop.Stop();
+            var span = stop.Elapsed.TotalMilliseconds;
+            
             // 画连接线
             Draw_Connector();
 
-            // 输出到HTML文件
-            html.Save("index.html");
 
             Console.WriteLine("Draw done.");
             Console.ReadLine();
@@ -111,16 +114,6 @@ namespace SCDVisual
         /// </summary>
         private static void Draw_Bus_Union()
         {
-            var buses = SCDResolver.buses;
-            int[] volts = buses.Keys.OfType<int>().ToArray();
-            var num = volts.Count();
-            if (num < 2)
-                return;
-
-            // 获取高，中压等级电压
-            High_volt = volts[num - 1];
-            Mid_volt  = volts[num - 2];
-
             // 高压侧是500kV及以上时，按照3/2接线方式处理
             if (High_volt >= 500)
             {
