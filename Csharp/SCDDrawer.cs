@@ -60,21 +60,21 @@ namespace SCDVisual
             DrawTransformer();
 
             // 画母联母线
+            Draw_Bus_Union();
+            
+            // 画分段母线
             Draw_Bus_Seg();
 
-            // 画分段母线
-            Draw_Bus_Union();
             // 画线路
             Draw_Lines();
+
+            // 画连接线
+            Draw_Connector();
 
             // 输出到HTML文件
             html.Save("index.html");
             stop.Stop();
             var span = stop.Elapsed.TotalMilliseconds;
-            
-            // 画连接线
-            Draw_Connector();
-
 
             Console.WriteLine("Draw done.");
             Console.ReadLine();
@@ -96,7 +96,7 @@ namespace SCDVisual
             foreach (int trans_no in trans.Keys)
             {
                 // 确定主变位置坐标
-                x = 300 + 400 * (trans_no-1);
+                x = 400 + 400 * (trans_no-1);
 
                 // 画主变
                 draw_component(x,y,"#Trans");
@@ -256,7 +256,7 @@ namespace SCDVisual
         {
             string color = volt==High_volt? "red":"blue";
             string href = volt == High_volt ? "#Join-U-" : "#Join-D-";
-            int dy = volt == High_volt ? -40 : 40;
+            int dy = volt == High_volt ? 0 : 35;
             int j = 0;
             foreach (var i in SCDResolver.transformers.Keys)
             {
@@ -284,7 +284,7 @@ namespace SCDVisual
                     {
                         var m = calc_bus_num_of_trans(volt);
                         int[] cord = buses_location[volt][bus_arr.First()];
-                        int x = 0, y = bus_arr.Count == 1 ? cord[1] : cord[1] - 42;
+                        int x = 0, y = bus_arr.Count == 1 ? cord[1] : cord[1] - 110;
                         href = bus_arr.Count == 1 ? href + "1" : href + "2";
                         if (m[bus_arr.First()] == 1)
                         {
@@ -298,7 +298,7 @@ namespace SCDVisual
                             x = cord[0] + part_len * j;
                         }
                         draw_join(x, y, color, href);
-                        draw_path(trans_location[i][0], trans_location[i][1], x, y + dy, color);
+                        draw_path(trans_location[i][0]+20, trans_location[i][1]+dy, x+20, y, color);
                     }
                 }
                 // 无母线-主变连接关系
@@ -390,7 +390,7 @@ namespace SCDVisual
                 x = x - 10;
             }
             // 画线路
-            draw_3_2_line(x,50+dy,href);
+            draw_3_2_line(line,x,50+dy,href);
             
         }
 
@@ -400,7 +400,7 @@ namespace SCDVisual
         /// <param name="x">线路的起点x坐标</param>
         /// <param name="y">线路的起点y坐标</param>
         /// <param name="href">引用的线路</param>
-        private static void draw_3_2_line(int x, int y, string href)
+        private static void draw_3_2_line(string line,int x, int y, string href)
         {
             Dictionary<string, string> attrs = new Dictionary<string, string>() {
                 { "x",x.ToString() },
@@ -408,8 +408,21 @@ namespace SCDVisual
                 { "href",href }
             };
             XmlElement ele = NewElement("use", attrs);
-
             svg.AppendChild(ele);
+
+            // 线路文字节点属性
+            Dictionary<string, string> txt_attrs = new Dictionary<string, string>() {
+                { "dy", "0" } ,
+                { "stroke", "black" } ,
+                { "stroke-width", "0.3" } ,
+                { "style", "writing-mode:tb;"} ,
+                { "x", (x+15).ToString() } ,
+                { "y", y.ToString()}
+            };
+            // 文字信息节点
+            XmlElement txt = NewElement("text", txt_attrs);
+            txt.InnerText = SCDResolver.lines[High_volt][line];
+            svg.AppendChild(txt);
         }
 
         /// <summary>
@@ -488,7 +501,7 @@ namespace SCDVisual
         /// <param name="volt_level">电压等级</param>
         private static void draw_normal_line(string line, int volt_level)
         {
-            int dy = volt_level == High_volt ? 0 : 150;
+            int dy = volt_level == High_volt ? 40 : 150;
             string color = volt_level == High_volt ? "red" : "blue";
             string href = volt_level == High_volt ? "#Line-Up-" : "#Line-Down-";
             int one_or_two = 1;  // 线路联到1条或2条母线上
@@ -505,6 +518,13 @@ namespace SCDVisual
                 // 只取用标号较大的母线即可
                 i = SCDResolver.line_bus_relation[line].Last();
             }
+            // 记录母线上线路条数
+            if (!bus_line_num.ContainsKey(volt_level))
+                bus_line_num[volt_level] = new Dictionary<int, int>();
+            if (!bus_line_num[volt_level].ContainsKey(i))
+                bus_line_num[volt_level][i] = 0;
+            bus_line_num[volt_level][i] += 1;
+
             x = buses_location[volt_level][i][0];
             y = buses_location[volt_level][i][1];
 
@@ -512,12 +532,6 @@ namespace SCDVisual
             y = y - 190 + dy;
             draw_single_line(line,x,y,color,href+one_or_two.ToString());
                 
-            // 记录母线上线路条数
-            if (!bus_line_num.ContainsKey(volt_level))
-                bus_line_num[volt_level] = new Dictionary<int, int>();
-            if (!bus_line_num[volt_level].ContainsKey(i))
-                bus_line_num[volt_level][i] = 0;
-            bus_line_num[volt_level][i] += 1;
         }
 
         /// <summary>
@@ -586,7 +600,7 @@ namespace SCDVisual
                     var relation_res = union_seg(relation);
                     // 初始坐标，及每段母线的长度
                     int seg_length = line_seg_length(relation_res.Count), x = 50, y = (Side == High_volt) ? 350 : 600;
-                    int dy = (Side == High_volt) ? 40 : -40;
+                    int dy = (Side == High_volt) ? -40 : 40;
                     // 画母线
                     foreach (var item in relation_res)
                     {
@@ -597,7 +611,7 @@ namespace SCDVisual
                             buses_location[Side] = new Dictionary<int, int[]>();
                         buses_location[Side][item.Key] = new int[] { x, y,x+seg_length };
                         // 调整坐标
-                        y = y - 40;
+                        y = y + dy;
                         int partLen = (seg_length - (item.Value.Count - 1) * 50) / item.Value.Count;
                         int x2 = x + partLen;
 
@@ -614,7 +628,7 @@ namespace SCDVisual
                         }
                         x = x2 - x + 100;
                         x2 = x + seg_length;
-                        y = y + dy;
+                        y = y - dy;
                     }
                 }
             }
@@ -706,7 +720,7 @@ namespace SCDVisual
                             x = x + part_len + 50;
                         }
                         // 画出分段开关
-                        draw_component(buses_location[Side][item[0]][0] + part_len - 25, y - 25, "#BusSeg", "red");
+                        draw_component(buses_location[Side][item[0]][0] + part_len - 25, y - 25, href, color);
                         if (n % 2 == 1)
                         {
                             // 调整坐标
@@ -744,7 +758,7 @@ namespace SCDVisual
                             x = x + part_len + 50;
                         }
                         // 画出分段开关
-                        draw_component(buses_location[Side][item[0]][0] + part_len - 25, y - 25, "#BusSeg", "red");
+                        draw_component(buses_location[Side][item[0]][0] + part_len - 25, y - 25, href, color);
                     }
                 }
 
@@ -964,14 +978,14 @@ namespace SCDVisual
         {
             int dy = (y1 + y2) / 2;
 
-            StringBuilder sb = new StringBuilder("M ");
-            sb.Append(x1.ToString() + " " + y1.ToString());
-            sb.Append("L "+x1.ToString()+" "+dy.ToString());
-            sb.Append("L " + x2.ToString() + " " + dy.ToString());
+            StringBuilder sb = new StringBuilder("M");
+            sb.Append(x1.ToString() + " " + y1.ToString()+" ");
+            sb.Append("L"+x1.ToString()+" "+dy.ToString()+" ");
+            sb.Append("L " + x2.ToString() + " " + dy.ToString()+" ");
             sb.Append("L " + x2.ToString() + " " + y2.ToString());
 
             Dictionary<string, string> attrs = new Dictionary<string, string>() {
-                { "p", sb.ToString() },
+                { "d", sb.ToString() },
                 { "fill-opacity","0.0" },
                 { "stroke",color }
             };

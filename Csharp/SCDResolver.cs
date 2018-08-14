@@ -382,12 +382,7 @@ namespace SCDVisual
                                     m_relation[level]["分段"] = new Dictionary<string, int[]>();
                                 }
                             }
-
-                            if (m_relation[level]["分段"].ContainsKey(m_part))
-                            {
-                                break;
-                            }
-                            lock (m_relation[level]["分段"])
+                            lock(m_relation[level]["分段"])
                             {
                                 m_relation[level]["分段"][m_part] = seg_arr;
                             }
@@ -412,10 +407,6 @@ namespace SCDVisual
                                 {
                                     m_relation[level]["母联"] = new Dictionary<string, int[]>();
                                 }
-                            }
-                            if (m_relation[level]["母联"].ContainsKey(m_part))
-                            {
-                                break;
                             }
                             lock (m_relation[level]["母联"])
                             {
@@ -711,8 +702,11 @@ namespace SCDVisual
             Parallel.ForEach(breakers, (info) => {
                 // 获取断路器间隔编号，并添加到集合中
                 var b_no = breaker_reg.Match(info).Value;
-                break_seg.Add(b_no.Substring(0, 3));
-                breaker_no.Add(int.Parse(b_no.Substring(3, 1)));
+                lock (break_seg)
+                {
+                    break_seg.Add(b_no.Substring(0, 3));
+                    breaker_no.Add(int.Parse(b_no.Substring(3, 1)));
+                }
             });
             
             return break_seg;
