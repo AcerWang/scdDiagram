@@ -122,7 +122,7 @@ namespace SCDVisual
                 foreach (int i in SCDResolver.buses[High_volt])
                 {
                     // 画一条母线
-                    draw_single_bus(High_volt.ToString() + "kV", i, x, y, x + 1200, y);
+                    draw_single_bus(High_volt.ToString() + "kV", i, x, y, x + 1200, y,"red");
                     // 存储位置信息
                     buses_location[High_volt] = new Dictionary<int, int[]>();
                     buses_location[High_volt][i] = new int[] { x, y,x+1200 };
@@ -229,11 +229,13 @@ namespace SCDVisual
                     var b_no = kv.Value.Select(e => int.Parse(e.Last().ToString())).ToArray();
                     // 确定纵坐标偏移量
                     if (b_no[0] == breaker_no[0])
-                        dy = b_no[1] == breaker_no[1] ? 0 : 50;
+                        dy = b_no[1] == breaker_no[1] ? 50 : 100;
+                    else
+                        dy = 100;
                     int x1 = breaker_location[kv.Value.First().Substring(0, 3)][0];
-                    int y1 = 190 + dy;
+                    int y1 = 200 + dy;
                     int x2 = trans_location[kv.Key][0], y2 = trans_location[kv.Key][1];
-                    draw_trans_path(x1, y1, x2, y2);
+                    draw_trans_path(x1+15, y1, x2+20, y2+5);
                 }
             }
             // 按普通画法
@@ -256,7 +258,8 @@ namespace SCDVisual
         {
             string color = volt==High_volt? "red":"blue";
             string href = volt == High_volt ? "#Join-U-" : "#Join-D-";
-            int dy = volt == High_volt ? 0 : 35;
+            int dy = volt == High_volt ? 0 : -110;
+            int vy = volt == High_volt ? 5 : 35;
             int j = 0;
             foreach (var i in SCDResolver.transformers.Keys)
             {
@@ -264,7 +267,7 @@ namespace SCDVisual
                 // 包含主变-母线关系
                 string trans_no = (volt * 10 + i).ToString();
 
-                // 找到关系，直接连接到高压母线数量的母线上
+                // 找到关系，直接连接到母线数量的母线上
                 if (SCDResolver.trans_bus_relation.ContainsKey(trans_no))
                 {
                     var bus_arr = SCDResolver.trans_bus_relation[trans_no];
@@ -275,7 +278,7 @@ namespace SCDVisual
                         int seg_length = (cordination[0] + cordination[2]) / (SCDResolver.transformers.Count + 1);
                         int x = 50 + seg_length * j;
                         int y = num == 1 ? cordination[1] : cordination[1] - 42;
-                        href = num == 1 ? href+"1" : href+"2";
+                        string tmp_href = num == 1 ? href+"1" : href+"2";
                         draw_join(x, y, color, href);
                         draw_path(trans_location[i][0],trans_location[i][1],x,y+dy,color);
                     }
@@ -283,22 +286,34 @@ namespace SCDVisual
                     else
                     {
                         var m = calc_bus_num_of_trans(volt);
-                        int[] cord = buses_location[volt][bus_arr.First()];
-                        int x = 0, y = bus_arr.Count == 1 ? cord[1] : cord[1] - 110;
-                        href = bus_arr.Count == 1 ? href + "1" : href + "2";
+                        int[] cord = buses_location[volt][bus_arr.Max()];
+                        int x = 0;
+                        int y = cord[1];
+                        string tmp_href = bus_arr.Count == 1 ? href + "1" : href + "2";
                         if (m[bus_arr.First()] == 1)
                         {
-                            int part_len = (cord[0] + cord[2]) / 2;
+                            int part_len = (cord[2] - cord[0]) / 2;
                             x = cord[0] + part_len;
                             j = 0;
                         }
                         else
                         {
-                            int part_len = (cord[0] + cord[2]) / (m[bus_arr.First()] + 1);
+                            int part_len = (cord[2] - cord[0]) / (m[bus_arr.First()] + 1);
                             x = cord[0] + part_len * j;
                         }
-                        draw_join(x, y, color, href);
-                        draw_path(trans_location[i][0]+20, trans_location[i][1]+dy, x+20, y, color);
+
+                        int len_conn = bus_arr.Count == 1 ? 110 : 150;
+                        int off_y = 0;
+                        if (volt == High_volt)
+                        {
+                            off_y = len_conn;
+                        }
+                        else
+                        {
+                            y = y - len_conn;
+                        }
+                        draw_join(x, y, color, tmp_href);
+                        draw_path(trans_location[i][0]+20, trans_location[i][1]+vy, x+20, y+off_y, color);
                     }
                 }
                 // 无母线-主变连接关系
@@ -309,8 +324,8 @@ namespace SCDVisual
                     int seg_length = (cordination[0] + cordination[2]) / (SCDResolver.transformers.Count + 1);
                     int x = 50 + seg_length * j;
                     int y = num == 1 ? cordination[1] : cordination[1] - 42;
-                    href = num == 1 ? href + "1" : href + "2";
-                    draw_join(x, y, color, href);
+                    string tmp_href = num == 1 ? href + "1" : href + "2";
+                    draw_join(x, y, color, tmp_href);
                     draw_path(trans_location[i][0], trans_location[i][1], x, y + dy, color);
                 }
             }
@@ -374,8 +389,10 @@ namespace SCDVisual
             // 纵坐标偏移量
             int dy = 0;
             // 确定纵坐标偏移量
-            if (b_no[0]==breaker_no[0])
-                dy = b_no[1] == breaker_no[1] ? 50 : 0;
+            if (b_no[0] == breaker_no[0])
+                dy = b_no[1] == breaker_no[1] ? 0 : 50;
+            else
+                dy = 50;
             
             // 判断线路在断路器左侧还是右侧
             if(line_num_of_breaker.ContainsKey(breaker))
@@ -501,7 +518,7 @@ namespace SCDVisual
         /// <param name="volt_level">电压等级</param>
         private static void draw_normal_line(string line, int volt_level)
         {
-            int dy = volt_level == High_volt ? 40 : 150;
+            int dy = volt_level == High_volt ? 0 : 150;
             string color = volt_level == High_volt ? "red" : "blue";
             string href = volt_level == High_volt ? "#Line-Up-" : "#Line-Down-";
             int one_or_two = 1;  // 线路联到1条或2条母线上
@@ -516,7 +533,7 @@ namespace SCDVisual
             {
                 one_or_two = SCDResolver.line_bus_relation[line].Count;
                 // 只取用标号较大的母线即可
-                i = SCDResolver.line_bus_relation[line].Last();
+                i = SCDResolver.line_bus_relation[line].Max();
             }
             // 记录母线上线路条数
             if (!bus_line_num.ContainsKey(volt_level))
@@ -545,17 +562,17 @@ namespace SCDVisual
             // 不存在关联关系的母线，直接画单独分段线段
             if (SCDResolver.buses_relation[Side].Count() == 0)
             {
-                int x = 50, y = (Side == High_volt) ? 350 : 600;
+                int x = 50, y = (Side == High_volt) ? 300 : 650;
                 // 每一段母线的长度
                 int seg_length = line_seg_length(SCDResolver.buses[Side].Count);
                 // 每一段，单独画，水平排列
-                foreach (var i in SCDResolver.buses[Side])
+                foreach (int i in SCDResolver.buses[Side])
                 {
                     // 画一条母线
                     draw_single_bus(Side.ToString() + "kV", i, x, y, x + seg_length, y,color);
                     // 存储坐标
                     if (!buses_location.ContainsKey(Side))
-                        buses_location[Side] = new Dictionary<int, int[]>();
+                        buses_location[Side] = new SortedDictionary<int, int[]>();
                     buses_location[Side][i] = new int[] { x, y, x+seg_length };
 
                     // 更新x坐标
@@ -572,8 +589,8 @@ namespace SCDVisual
                     // 之前的解析结果只有一条母线，则补齐另一条
                     if (SCDResolver.buses[Side].Count == 1)
                         SCDResolver.buses[Side].Add(SCDResolver.buses[Side].Last() + 1);
-
-                    int x = 50, y = (Side == High_volt) ? 350 : 600;
+                    // SCDResolver.buses_relation[Side]["母联"] = SCDResolver.buses[Side];
+                    int x = 50, y = (Side == High_volt) ? 300 : 650;
                     int dy = (Side == High_volt) ? -40 : 40;
                     // 画两条并联母线
                     foreach (int i in SCDResolver.buses[Side])
@@ -590,7 +607,7 @@ namespace SCDVisual
                     }
 
                     // 并联两母线，画出母联
-                    draw_component(x + 20, y + 40, href, color);
+                    draw_component(buses_location[Side][SCDResolver.buses[Side].Max()][0] + 20, buses_location[Side][SCDResolver.buses[Side].Max()][1], href, color);
                 }
 
                 // 多组母联
@@ -599,7 +616,7 @@ namespace SCDVisual
                     var relation = SCDResolver.buses_relation[Side]["母联"].Values;
                     var relation_res = union_seg(relation);
                     // 初始坐标，及每段母线的长度
-                    int seg_length = line_seg_length(relation_res.Count), x = 50, y = (Side == High_volt) ? 350 : 600;
+                    int seg_length = line_seg_length(relation_res.Count), x = 50, y = (Side == High_volt) ? 300 : 650;
                     int dy = (Side == High_volt) ? -40 : 40;
                     // 画母线
                     foreach (var item in relation_res)
@@ -622,10 +639,15 @@ namespace SCDVisual
                             draw_single_bus(Side.ToString() + "kV", i, x, y, x2, y, color);
                             // 保存母线位置信息
                             buses_location[Side][i] = new int[] { x, y, x2 };
+                        
+                            // 画母联
+                            draw_component(buses_location[Side][item.Key][0]+20, buses_location[Side][item.Key][1] - dy + 10, href, color);
+                            
                             // 调整坐标
                             x = x2 + 50;
                             x2 = x + partLen;
                         }
+                        // 调整坐标
                         x = x2 - x + 100;
                         x2 = x + seg_length;
                         y = y - dy;
@@ -642,7 +664,7 @@ namespace SCDVisual
         {
             string color = (Side == High_volt) ? "red" : "blue";
             string href = "#BusSeg";
-            int x = 50, y = (Side == High_volt) ? 350 : 600;
+            int x = 50, y = (Side == High_volt) ? 300 : 650;
             int dy = (Side == High_volt) ? 40 : -40;
 
             // 默认二分段
@@ -660,7 +682,7 @@ namespace SCDVisual
                     if (!buses_location[Side].ContainsKey(i))
                     {
                         // 画母线
-                        draw_single_bus(Side.ToString() + "kV", i, x, y, x + 600, y, color);
+                        draw_single_bus(Side.ToString() + "kV", i, x, y, x + 650, y, color);
                         draw_text(SCDResolver.c_index[i], x - 20, y + 5);
                         // 记录位置信息
                         buses_location[Side][i] = new int[] { x, y, x+600};
@@ -669,7 +691,7 @@ namespace SCDVisual
                     x += 650;
                 }
                 // 画分段开关
-                draw_component(640, 330, href, color);
+                draw_component(640, 280, href, color);
             }
 
             // 多分段情况
@@ -710,14 +732,13 @@ namespace SCDVisual
                             if (!buses_location[Side].ContainsKey(i))
                             {
                                 // 画母线
-                                draw_single_bus(Side + "kV", i, x, y, x + part_len, y, "red");
-                                draw_text(SCDResolver.c_index[i], x - 20, y + 5, "red");
+                                draw_single_bus(Side + "kV", i, x, y, x + part_len, y, color);
 
                                 // 记录位置信息
-                                buses_location[Side][i] = new int[] { x, y, x+part_len};
+                                buses_location[Side][i] = new int[] { x, y, x + part_len };
                             }
-                            // 调整x坐标
-                            x = x + part_len + 50;
+                            // 已经划过该母线了，转到下一条
+                            x = buses_location[Side][i][2] + 50;
                         }
                         // 画出分段开关
                         draw_component(buses_location[Side][item[0]][0] + part_len - 25, y - 25, href, color);
@@ -748,14 +769,13 @@ namespace SCDVisual
                             if (!buses_location[Side].ContainsKey(i))
                             {
                                 // 画母线
-                                draw_single_bus(Side + "kV", i, x, y, x + part_len, y, "red");
-                                draw_text(SCDResolver.c_index[i], x - 20, y + 5, "red");
+                                draw_single_bus(Side + "kV", i, x, y, x + part_len, y,color);
 
                                 // 记录位置信息
                                 buses_location[Side][i] = new int[] { x, y, x+part_len};
                             }
                             // 调整坐标
-                            x = x + part_len + 50;
+                            x = buses_location[Side][i][2] + 50;
                         }
                         // 画出分段开关
                         draw_component(buses_location[Side][item[0]][0] + part_len - 25, y - 25, href, color);
@@ -766,7 +786,7 @@ namespace SCDVisual
         }
 
         /// <summary>
-        /// 按所给参数，画一条母线
+        /// 按所给参数，画一条母线,包含文字部分
         /// </summary>
         /// <param name="prefix">母线id前缀</param>
         /// <param name="id">母线编号</param>
@@ -775,7 +795,7 @@ namespace SCDVisual
         /// <param name="x2">母线终点横坐标</param>
         /// <param name="y2">母线终点纵坐标</param>
         /// <param name="color">母线颜色</param>
-        private static void draw_single_bus(string prefix, int id, int x1, int y1, int x2, int y2, string color="red")
+        private static void draw_single_bus(string prefix, int id, int x1, int y1, int x2, int y2, string color)
         {
             Dictionary<string, string> ele_attrs = new Dictionary<string, string>()
                             {
@@ -1002,17 +1022,17 @@ namespace SCDVisual
         /// <param name="y2">终点纵坐标</param>
         private static void draw_trans_path(int x1, int y1, int x2, int y2)
         {
-            int dy = (y1 + y2) / 2;
+            int dy = (y1 + y2) / 2 + 20;
 
-            StringBuilder sb = new StringBuilder("M ");
+            StringBuilder sb = new StringBuilder("M");
             sb.Append(x1.ToString() + " " + y1.ToString());
-            sb.Append("L " + (x1+50).ToString() + " " + y1.ToString());
-            sb.Append("L " + (x1+50).ToString() + " " + dy.ToString());
-            sb.Append("L " + x2.ToString() + " " + dy.ToString());
-            sb.Append("L " + x2.ToString() + " " + y2.ToString());
+            sb.Append(" L" + (x1+50).ToString() + " " + y1.ToString());
+            sb.Append(" L" + (x1+50).ToString() + " " + dy.ToString());
+            sb.Append(" L" + x2.ToString() + " " + dy.ToString());
+            sb.Append(" L" + x2.ToString() + " " + y2.ToString());
 
             Dictionary<string, string> attrs = new Dictionary<string, string>() {
-                { "p", sb.ToString() },
+                { "d", sb.ToString() },
                 { "fill-opacity","0.0" },
                 { "stroke","red" }
             };

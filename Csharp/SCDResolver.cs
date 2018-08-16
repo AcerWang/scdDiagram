@@ -11,7 +11,7 @@ namespace SCDVisual
     class SCDResolver
     {
         // xml文件名称
-        const string xml_file_path = "BZB.scd";
+        const string xml_file_path = "MLB.scd";
         // IED的name，desc信息
         static private List<string[]> IEDsInfo = new List<string[]>();
         // IED节点信息
@@ -322,40 +322,41 @@ namespace SCDVisual
                     // 母线编号及母线电压等级
                     var no = relation_no.Match(item[0]).Value;
                     var level = int.Parse(no.Substring(0, 2));
+                    if (low_level.Contains(level))
+                    {
+                        return;
+                    }
+                    level = level * 10;
                     // 母线关系的数组，存储有关系的母线段
                     int[] seg_arr = null;
 
                     // 不是有效的母线关系
-                    if (m_part == "" && no[2] == '0')
-                        m_part = null;
-                    // 有效的母线关系，用该IED的编号进行处理
-                    else
-                        m_part = no;
-
+                    if (no == "")
+                        return;
+                    
                     // 母线关系存在，对seg_arr数组进行赋值，包含两段关联的母线段
-                    if (m_part != null)
+                    if (no[2] != '0')
                     {
                         seg_arr = new int[2];
-
+                        seg_arr[0] = Array.IndexOf(d_index, no[2].ToString());
+                        seg_arr[1] = Array.IndexOf(d_index, no[3].ToString());
+                    }
+                    else
+                    {
                         if (m_part.Contains("-"))
                         {
-                            seg_arr[0] = Array.IndexOf(c_index, m_part.Split('-')[0]);
-                            seg_arr[1] = Array.IndexOf(c_index, m_part.Split('-')[1]);
-                        }
-                        else
-                        {
-                            seg_arr[0] = Array.IndexOf(d_index, m_part[2].ToString());
-                            seg_arr[1] = Array.IndexOf(d_index, m_part[3].ToString());
-                        }
+                            seg_arr = new int[2];
+                            seg_arr[0] = Array.IndexOf(c_index, m_part.Split('-')[0].Trim());
+                            seg_arr[1] = Array.IndexOf(c_index, m_part.Split('-')[1].Trim());
+                        }   
                     }
-                    level = low_level.Contains(level) ? level : level * 10;
 
                     // 若是新的电压等级，创建新的存储结构
                     if (!m_relation.ContainsKey(level))
                     {
                         lock (m_relation)
                         {
-                            m_relation[level] = new Dictionary<string, IDictionary<string, int[]>>();
+                            m_relation[level] = new SortedDictionary<string, IDictionary<string, int[]>>();
                         }
                     }
                     // 判断关联类型，存储关联部分到关系数据结构中
@@ -366,25 +367,25 @@ namespace SCDVisual
                         case "分段":
                             if (!m_relation[level].ContainsKey("分段"))
                             {
-                                lock (m_relation[level])
+                                lock (m_relation)
                                 {
-                                    m_relation[level]["分段"] = null;
+                                    if(!m_relation[level].ContainsKey("分段"))
+                                        m_relation[level]["分段"] = null;
                                 }
                             }
-                            if (m_part is null)
-                            {
+                            if (seg_arr is null)
                                 break;
-                            }
                             if (m_relation[level]["分段"] == null)
                             {
-                                lock (m_relation[level])
+                                lock (m_relation)
                                 {
-                                    m_relation[level]["分段"] = new Dictionary<string, int[]>();
+                                    if(m_relation[level]["分段"]==null)
+                                        m_relation[level]["分段"] = new SortedDictionary<string, int[]>();
                                 }
                             }
-                            lock(m_relation[level]["分段"])
+                            lock(m_relation)
                             {
-                                m_relation[level]["分段"][m_part] = seg_arr;
+                                m_relation[level]["分段"][no] = seg_arr;
                             }
                             break;
 
@@ -392,25 +393,25 @@ namespace SCDVisual
                         case "母联":
                             if (!m_relation[level].ContainsKey("母联"))
                             {
-                                lock (m_relation[level])
+                                lock (m_relation)
                                 {
-                                    m_relation[level]["母联"] = null;
+                                    if(!m_relation[level].ContainsKey("母联"))
+                                        m_relation[level]["母联"] = null;
                                 }
                             }
-                            if (m_part is null)
-                            {
+                            if (seg_arr is null)
                                 break;
-                            }
                             if (m_relation[level]["母联"] == null)
                             {
-                                lock (m_relation[level])
+                                lock (m_relation)
                                 {
-                                    m_relation[level]["母联"] = new Dictionary<string, int[]>();
+                                    if(m_relation[level]["母联"]==null)
+                                    m_relation[level]["母联"] = new SortedDictionary<string, int[]>();
                                 }
                             }
-                            lock (m_relation[level]["母联"])
+                            lock (m_relation)
                             {
-                                m_relation[level]["母联"][m_part] = seg_arr;
+                                m_relation[level]["母联"][no] = seg_arr;
                             }
                             break;
 
@@ -449,7 +450,7 @@ namespace SCDVisual
                 line = reg.Split(line)[1];
 
                 // 过滤掉非线路和过掉以处理过的线路
-                if (!all_lines.Contains(line) || line_bus_dic.ContainsKey(line))
+                if (!all_lines.Contains(line))
                     return;
                 // 500kV及以上高压部分，获取其与断路器的关系
                 if (int.Parse(line.Substring(0, 2)) * 10 >= 500)
@@ -458,16 +459,16 @@ namespace SCDVisual
                     return;
                 }
                 // 新线路，生成新的存储结构
-                if (!line_bus_dic.ContainsKey(line))
+                if (!line_bus_dic.ContainsKey(line) || line_bus_dic[line].Count == 0)
                 {
                     lock (line_bus_dic)
                     {
-                        line_bus_dic[line] = new SortedSet<int>();
+                        if(!line_bus_dic.ContainsKey(line))
+                            line_bus_dic[line] = new SortedSet<int>();
                     }
+                    // 获取该线路MU对应的外部母线引用
+                    FindReference(e, line_bus_dic);
                 }
-
-                // 获取该线路MU对应的外部母线引用
-                FindReference(e, line_bus_dic);
             });
 
             return line_bus_dic;
@@ -487,7 +488,7 @@ namespace SCDVisual
             // 线路编号
             var line = ied_no.Match(node.GetAttribute("name")).Value;
             // 线路对应的ExtRef节点
-            var mu_ext_refs = node.SelectNodes("//ns:IED[@name='" + mu_name + "'][1]/ns:AccessPoint[starts-with(@name,'M')][1]/ns:Server/ns:LDevice[starts-with(@inst,'MU')]/ns:LN0[1]/ns:Inputs[1]/ns:ExtRef", nsmgr).OfType<XmlElement>().AsParallel();
+            var mu_ext_refs = node.SelectNodes("//ns:IED[@name='" + mu_name + "'][1]/ns:AccessPoint[starts-with(@name,'M')]/ns:Server/ns:LDevice[starts-with(@inst,'MU')]/ns:LN0[1]/ns:Inputs[1]/ns:ExtRef", nsmgr).OfType<XmlElement>().AsParallel();
 
             // 该 ExtRef 所引用的外部 LN 节点
             XmlElement target_ln;
@@ -509,7 +510,7 @@ namespace SCDVisual
                 var bus_no = int.Parse(ied_no.Match(ied_name).Value);
                 if (bus_no % 100 > 10)
                 {
-                    lock (line_bus_dic[line])
+                    lock (line_bus_dic)
                     {
                         int index = bus_no % 10;
                         line_bus_dic[line].Add(index);
@@ -534,7 +535,7 @@ namespace SCDVisual
                         return;
 
                     var index = c_index.Contains(desc) ? Array.IndexOf(c_index, desc) + (bus_no % 10 - 1) * 2 : Array.IndexOf(d_index, desc) + (bus_no % 10 - 1) * 2;
-                    lock (line_bus_dic[line])
+                    lock (line_bus_dic)
                     {
                         line_bus_dic[line].Add(index);
                     }
@@ -569,14 +570,14 @@ namespace SCDVisual
                     return;
 
                 // 关系字典中存在该主变，跳过
-                if (!trans_dic.ContainsKey(name))
+                if (!trans_dic.ContainsKey(name) || trans_dic[name].Count==0)
                 {
-                    // 添加主变到存储结构中
                     lock (trans_dic)
                     {
-                        trans_dic[name] = new SortedSet<int>();
+                        if(!trans_dic.ContainsKey(name))
+                            // 添加主变到存储结构中
+                            trans_dic[name] = new SortedSet<int>();
                     }
-
                     // 查找该主变关联的母线
                     FindReference(item, trans_dic);
                 }
