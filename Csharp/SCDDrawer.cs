@@ -44,6 +44,7 @@ namespace SCDVisual
             Mid_volt = SCDResolver.Mid_Volt;
             try
             {
+                Check();
                 // 加载模板
                 html.Load("base.html");
                 svg = html.SelectSingleNode("/html/body/svg");
@@ -51,17 +52,17 @@ namespace SCDVisual
             }
             catch (Exception e)
             {
+                Console.WriteLine(e.Message);
                 Console.WriteLine(e.StackTrace);
                 return;
             }
-            System.Diagnostics.Stopwatch stop = new System.Diagnostics.Stopwatch();
-            stop.Start();
+
             // 画主变
             DrawTransformer();
 
             // 画母联母线
             Draw_Bus_Union();
-            
+
             // 画分段母线
             Draw_Bus_Seg();
 
@@ -70,12 +71,10 @@ namespace SCDVisual
 
             // 画连接线
             Draw_Connector();
-
+           
             // 输出到HTML文件
             html.Save("index.html");
-            stop.Stop();
-            var span = stop.Elapsed.TotalMilliseconds;
-
+            
             Console.WriteLine("Draw done.");
             Console.ReadLine();
         }
@@ -118,6 +117,8 @@ namespace SCDVisual
             if (High_volt >= 500)
             {
                 int x = 50, y = 350;
+                if (SCDResolver.buses[High_volt] == null)
+                    SCDResolver.buses[High_volt] = new SortedSet<int>(new int[] { 1, 2 });
                 // 画3/2接线母线
                 foreach (int i in SCDResolver.buses[High_volt])
                 {
@@ -151,13 +152,13 @@ namespace SCDVisual
         private static void Draw_Bus_Seg()
         {   
             // 高压侧存在分段
-            if(SCDResolver.buses_relation.ContainsKey(High_volt) && SCDResolver.buses_relation[High_volt].ContainsKey("分段"))
+            if(SCDResolver.buses_relation[High_volt]!=null && SCDResolver.buses_relation[High_volt].ContainsKey("分段"))
             {
                 draw_single_side_bus_seg(High_volt);
             }
 
             // 中压侧存在分段
-            if (SCDResolver.buses_relation.ContainsKey(Mid_volt) && SCDResolver.buses_relation[Mid_volt].ContainsKey("分段"))
+            if (SCDResolver.buses_relation[Mid_volt]!=null && SCDResolver.buses_relation[Mid_volt].ContainsKey("分段"))
             {
                 draw_single_side_bus_seg(Mid_volt);
             }
@@ -229,9 +230,9 @@ namespace SCDVisual
                     var b_no = kv.Value.Select(e => int.Parse(e.Last().ToString())).ToArray();
                     // 确定纵坐标偏移量
                     if (b_no[0] == breaker_no[0])
-                        dy = b_no[1] == breaker_no[1] ? 50 : 100;
+                        dy = b_no[1] == breaker_no[1] ? 100 : 50;
                     else
-                        dy = 100;
+                        dy = 50;
                     int x1 = breaker_location[kv.Value.First().Substring(0, 3)][0];
                     int y1 = 200 + dy;
                     int x2 = trans_location[kv.Key][0], y2 = trans_location[kv.Key][1];
@@ -342,6 +343,11 @@ namespace SCDVisual
             foreach (var t in SCDResolver.transformers.Keys)
             {
                 var trans_no = (volt * 10 + t).ToString();
+                // 500kV及以上直接采用母线段
+                if (volt >= 500)
+                {
+                    SCDResolver.trans_bus_relation[trans_no] = SCDResolver.buses[volt];
+                }
                 var bus = SCDResolver.trans_bus_relation[trans_no].First();
                 if (!dict.ContainsKey(bus))
                     dict[bus] = 1;
@@ -390,9 +396,9 @@ namespace SCDVisual
             int dy = 0;
             // 确定纵坐标偏移量
             if (b_no[0] == breaker_no[0])
-                dy = b_no[1] == breaker_no[1] ? 0 : 50;
+                dy = b_no[1] == breaker_no[1] ? 50 : 0;
             else
-                dy = 50;
+                dy = 0;
             
             // 判断线路在断路器左侧还是右侧
             if(line_num_of_breaker.ContainsKey(breaker))
@@ -559,12 +565,21 @@ namespace SCDVisual
         {
             string color = (Side == High_volt) ? "red" : "blue";
             string href = (Side == High_volt) ? "#BusUnion" : "#BusUnion-down";
+
             // 不存在关联关系的母线，直接画单独分段线段
-            if (SCDResolver.buses_relation[Side].Count() == 0)
+            if (SCDResolver.buses_relation[Side] == null)
             {
                 int x = 50, y = (Side == High_volt) ? 300 : 650;
+                // 为比较老的，特殊的scd文件兼容，没有母线的情况
+                if (SCDResolver.buses[Side] == null)
+                {
+                    // 默认添加一条母线
+                    SCDResolver.buses[Side] = new SortedSet<int>(new int[] { 1 });
+                }
                 // 每一段母线的长度
                 int seg_length = line_seg_length(SCDResolver.buses[Side].Count);
+
+
                 // 每一段，单独画，水平排列
                 foreach (int i in SCDResolver.buses[Side])
                 {
@@ -578,6 +593,8 @@ namespace SCDVisual
                     // 更新x坐标
                     x = x + seg_length + 50;
                 }
+
+                return;
             }
 
             // 这一侧有母联的情况
@@ -586,8 +603,14 @@ namespace SCDVisual
                 // 有母联关系，但各段母线未给出，此情况直接按并联两条母线画图
                 if (SCDResolver.buses_relation[Side]["母联"] == null)
                 {
+                    // 为兼容老的，特殊scd文件，之前的解析没有母线
+                    if (SCDResolver.buses[Side] == null)
+                    {
+                        // 默认添加两段母线
+                        SCDResolver.buses[Side] = new SortedSet<int>(new int[] { 1, 2 });
+                    }
                     // 之前的解析结果只有一条母线，则补齐另一条
-                    if (SCDResolver.buses[Side].Count == 1)
+                    else if (SCDResolver.buses[Side].Count == 1)
                         SCDResolver.buses[Side].Add(SCDResolver.buses[Side].Last() + 1);
                     // SCDResolver.buses_relation[Side]["母联"] = SCDResolver.buses[Side];
                     int x = 50, y = (Side == High_volt) ? 300 : 650;
@@ -666,7 +689,11 @@ namespace SCDVisual
             string href = "#BusSeg";
             int x = 50, y = (Side == High_volt) ? 300 : 650;
             int dy = (Side == High_volt) ? 40 : -40;
-
+            // 不存在分段
+            if (!SCDResolver.buses_relation[Side].ContainsKey("分段"))
+            {
+                return;
+            }
             // 默认二分段
             if (SCDResolver.buses_relation[Side]["分段"] == null)
             {
@@ -1038,6 +1065,15 @@ namespace SCDVisual
             };
             XmlElement ele = NewElement("path", attrs);
             svg.AppendChild(ele);
+        }
+
+        /// <summary>
+        /// 检查解析结果的有效性
+        /// </summary>
+        private static void Check()
+        {
+            if (SCDResolver.buses[High_volt] == null && SCDResolver.buses[Mid_volt] == null)
+                throw new Exception("解析到SCD配置文件，不符合“六统一”规范的格式");
         }
     }
 }
