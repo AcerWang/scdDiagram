@@ -246,8 +246,8 @@ namespace SCDVisual
         private static SortedDictionary<int, IDictionary<string, string>> GetLines()
         {
             // 线路匹配正则表达式
-            Regex line_no = new Regex(@"^[PS].*L(\d{4})");
-            Regex line_name = new Regex(@"(\d{2,4}\D{2,}\d?\D*?线路?)|(\D*线)");
+            Regex line_no = new Regex(@"^[MS].*L(\d{4})");
+            Regex line_name = new Regex(@"(\d{2,4}\D{2,}\d*?\D*?线*?路?)|(\D*线)");
             
             // 线路IEDs
             var lines = IEDsInfo.Where(ied => line_no.IsMatch(ied[0]) && line_name.IsMatch(ied[1])).Select(ied => ied).AsParallel();
@@ -265,7 +265,12 @@ namespace SCDVisual
 
                 // 去除低压线路
                 var level = int.Parse(l_no.Substring(0, 2));
-                level = low_level.Contains(level) ? level : level * 10;
+                if (low_level.Contains(level))
+                    return;
+                level = level * 10;
+
+                if(l_name=="") 
+                    l_name = level.ToString()+"线路" + l_no.Substring(1, 3);
 
                 // 添加线路信息
                 lock (m_lines)
