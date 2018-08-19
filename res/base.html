@@ -2,23 +2,29 @@
 	<head>
 		<meta charset="utf-8" />
 		<title>主接线图</title>
-
 		<style>
-			body,svg{
-				margin:0;
-				padding:0;				
-			}
-			html,body,svg{
-				width:1920px;
-				height:1080px;
-				font:12px arial;
-			}
-		</style>
+		body,div{
+			margin:0;
+			padding:0;
+		}
+		html,body,svg{
+			width:1600px;
+			height:800px;
+			font:12px arial;
+		}
+		path:hover{
+			stroke-width:1.5;
+		}
+		use:hover{
+			stroke-width:1.5;
+		}
+	</style>
+	<script src="./svg-pan-zoom.min.js" ></script>
 	</head>
 
 	<body>
-		<svg>
-
+	<div id="container" style="margin-left:20px;margin-top:20px; border:1px solid black; ">
+		<svg id="SCD" style="display: inline; width: inherit; min-width: inherit; max-width: inherit; height: inherit; min-height: inherit; max-height: inherit; " width="1920px" height="1080px">
 			<symbol fill="white" fill-opacity="0.4" height="40" id="Trans" stroke="black" stroke-width="2" width="40">
 				<circle cx="20" cy="15" r="10" />
 				<circle cx="15" cy="25" r="10" />
@@ -142,7 +148,7 @@
 			</symbol>
 			
 			<symbol id="Line-3/2-R" fill-opacity="0.0" stroke-width="1" stroke="red">
-				<path d="M25 0 L25 250 L5 250" />
+				<path d="M25 0 L25 200 L5 200" />
 			</symbol>
 			
 			<symbol id="Line-to-Trans" fill-opacity="0.0" stroke-width="1" stroke="red">
@@ -150,5 +156,17 @@
 			</symbol>
 			
 		</svg>
+		</div>
+	<script>
+		window.onload = function() {
+		var container = document.getElementById("container");
+		container.style.width = document.body.clientWidth-40+"px"; 
+		container.style.height = document.body.clientHeight-40+"px";
+        svgPanZoom('#SCD', {
+          zoomEnabled: true,
+          controlIconsEnabled: true
+        });
+      };
+	</script>
 	</body>
 </html>
