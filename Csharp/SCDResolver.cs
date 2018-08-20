@@ -76,15 +76,15 @@ namespace SCDVisual
 
                 // 解析出IED的信息
                 GetIEDsInfo(xmlDoc);
+                // 获取线路
+                lines = GetLines();
             }
             catch (Exception e)
             {
                 Console.WriteLine(e.StackTrace);
                 
             }
-
-            lines = Task<Object>.Run(() => GetLines()).Result;
-                
+    
             // 获取主变
             transformers = Task<Object>.Run(() => GetTransformers()).Result;
 
@@ -246,11 +246,11 @@ namespace SCDVisual
         private static SortedDictionary<int, IDictionary<string, string>> GetLines()
         {
             // 线路匹配正则表达式
-            Regex line_no = new Regex(@"^[MS].*L(\d{4})");
-            Regex line_name = new Regex(@"(\d{2,4}\D{2,}\d*?\D*?线*?路?)|(\D*线)");
+            Regex line_no = new Regex(@"^MX?L(\d{4})");
+            Regex line_name = new Regex(@"(\d{2,4}\D{2,}\d?\D?线路?)|(\D*线)");
             
             // 线路IEDs
-            var lines = IEDsInfo.Where(ied => line_no.IsMatch(ied[0]) && line_name.IsMatch(ied[1])).Select(ied => ied).AsParallel();
+            var lines = IEDsInfo.Where(ied => line_no.IsMatch(ied[0])).Select(ied => ied).AsParallel();
             if (lines.Count() == 0)
                 return null;
 
@@ -270,7 +270,7 @@ namespace SCDVisual
                 level = level * 10;
 
                 if(l_name=="") 
-                    l_name = level.ToString()+"线路" + l_no.Substring(1, 3);
+                    l_name = level.ToString()+"kV线路" + l_no.Substring(1, 3);
 
                 // 添加线路信息
                 lock (m_lines)
@@ -290,7 +290,10 @@ namespace SCDVisual
             // 获取高，中压等级电压
             High_Volt = volts.Max();
             volts.Remove(High_Volt);
-            Mid_Volt = volts.Max();
+            if (volts.Count == 0)
+                Mid_Volt = 35;
+            else
+                Mid_Volt = volts.Max();
 
             return m_lines;
         }

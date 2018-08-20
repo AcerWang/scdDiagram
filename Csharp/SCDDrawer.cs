@@ -47,7 +47,7 @@ namespace SCDVisual
                 Check();
                 // 加载模板
                 html.Load("base.html");
-                svg = html.SelectSingleNode("/html/body/svg");
+                svg = html.SelectSingleNode("/html/body/div/svg");
 
             }
             catch (Exception e)
@@ -314,7 +314,7 @@ namespace SCDVisual
                             y = y - len_conn;
                         }
                         draw_join(x, y, color, tmp_href);
-                        draw_path(trans_location[i][0]+20, trans_location[i][1]+vy, x+20, y+off_y, color);
+                        draw_path(trans_location[i][0]+20, trans_location[i][1]+vy, x+10, y+off_y, color);
                     }
                 }
                 // 无母线-主变连接关系
@@ -369,7 +369,8 @@ namespace SCDVisual
             Dictionary<string, string> attrs = new Dictionary<string, string>() {
                 { "x",x.ToString() },
                 { "y",y.ToString() },
-                { "color",color },
+                { "stroke",color},
+                { "stroke-width","1" },
                 { "href",href }
             };
             XmlElement ele = NewElement("use", attrs);
@@ -428,6 +429,8 @@ namespace SCDVisual
             Dictionary<string, string> attrs = new Dictionary<string, string>() {
                 { "x",x.ToString() },
                 { "y",y.ToString() },
+                { "stroke","red"},
+                { "stroke-width","1"},
                 { "href",href }
             };
             XmlElement ele = NewElement("use", attrs);
@@ -489,12 +492,9 @@ namespace SCDVisual
             svg.AppendChild(ele);
 
             if (href.Contains("Up"))
-                x = x + 5;
+                x = x;
             else if (href.Contains("Down"))
-            {
-                x = x + 5;
                 y = y + 150;
-            }
             else if (href == "#Line-3/2-R")
                 x = x + 15;
             else
@@ -524,7 +524,7 @@ namespace SCDVisual
         /// <param name="volt_level">电压等级</param>
         private static void draw_normal_line(string line, int volt_level)
         {
-            int dy = volt_level == High_volt ? 0 : 150;
+            int dy = volt_level == High_volt ? -200 : 0;
             string color = volt_level == High_volt ? "red" : "blue";
             string href = volt_level == High_volt ? "#Line-Up-" : "#Line-Down-";
             int one_or_two = 1;  // 线路联到1条或2条母线上
@@ -538,8 +538,11 @@ namespace SCDVisual
             else    // 存在`线路-母线`关系，根据关系确定其位置
             {
                 one_or_two = SCDResolver.line_bus_relation[line].Count;
-                // 只取用标号较大的母线即可
-                i = SCDResolver.line_bus_relation[line].Max();
+                // 取用某侧标号的母线
+                if(volt_level==High_volt)
+                    i = SCDResolver.line_bus_relation[line].Max();
+                else
+                    i = SCDResolver.line_bus_relation[line].Min();
             }
             // 记录母线上线路条数
             if (!bus_line_num.ContainsKey(volt_level))
@@ -552,7 +555,7 @@ namespace SCDVisual
             y = buses_location[volt_level][i][1];
 
             x = x + (bus_line_num[volt_level][i] + 1) * 40;
-            y = y - 190 + dy;
+            y = y + dy;
             draw_single_line(line,x,y,color,href+one_or_two.ToString());
                 
         }
