@@ -178,6 +178,9 @@ namespace SCDVisual
                 {
                     // 画断路器
                     draw_breaker(100 + 150 * i, 200);
+                    draw_text(SCDResolver.breakers.ToArray()[i]+SCDResolver.breaker_no.ToArray()[2], 125 + 150 * i, 230);
+                    draw_text(SCDResolver.breakers.ToArray()[i] + SCDResolver.breaker_no.ToArray()[1], 125 + 150 * i, 280);
+                    draw_text(SCDResolver.breakers.ToArray()[i] + SCDResolver.breaker_no.ToArray()[0], 125 + 150 * i, 330);
                     // 记录断路器位置信息
                     breaker_location[breaker[i]] = new int[] { 100 + 150 * i, 200 };
                 }
@@ -260,6 +263,7 @@ namespace SCDVisual
             string color = volt==High_volt? "red":"blue";
             string href = volt == High_volt ? "#Join-U-" : "#Join-D-";
             int dy = volt == High_volt ? 0 : -110;
+            int ty = volt == High_volt ? 100 : 60;
             int vy = volt == High_volt ? 5 : 35;
             int j = 0;
             foreach (var i in SCDResolver.transformers.Keys)
@@ -281,6 +285,7 @@ namespace SCDVisual
                         int y = num == 1 ? cordination[1] : cordination[1] - 42;
                         string tmp_href = num == 1 ? href+"1" : href+"2";
                         draw_join(x, y, color, href);
+                        draw_text(trans_no.Substring(1,3),x+20,y+ty);
                         draw_path(trans_location[i][0],trans_location[i][1],x,y+dy,color);
                     }
                     // 连接到一段母线，或并联的母线上
@@ -314,6 +319,7 @@ namespace SCDVisual
                             y = y - len_conn;
                         }
                         draw_join(x, y, color, tmp_href);
+                        draw_text(trans_no.Substring(1,3), x + 20, y + ty);
                         draw_path(trans_location[i][0]+20, trans_location[i][1]+vy, x+10, y+off_y, color);
                     }
                 }
@@ -327,6 +333,7 @@ namespace SCDVisual
                     int y = num == 1 ? cordination[1] : cordination[1] - 42;
                     string tmp_href = num == 1 ? href + "1" : href + "2";
                     draw_join(x, y, color, tmp_href);
+                    draw_text(trans_no, x + 20, y + ty);
                     draw_path(trans_location[i][0], trans_location[i][1], x, y + dy, color);
                 }
             }
@@ -525,6 +532,7 @@ namespace SCDVisual
         private static void draw_normal_line(string line, int volt_level)
         {
             int dy = volt_level == High_volt ? -200 : 0;
+            int ty = volt_level== High_volt ? -50 : 60;
             string color = volt_level == High_volt ? "red" : "blue";
             string href = volt_level == High_volt ? "#Line-Up-" : "#Line-Down-";
             int one_or_two = 1;  // 线路联到1条或2条母线上
@@ -550,13 +558,15 @@ namespace SCDVisual
             if (!bus_line_num[volt_level].ContainsKey(i))
                 bus_line_num[volt_level][i] = 0;
             bus_line_num[volt_level][i] += 1;
-
+            // debug
             x = buses_location[volt_level][i][0];
             y = buses_location[volt_level][i][1];
 
             x = x + (bus_line_num[volt_level][i] + 1) * 40;
             y = y + dy;
             draw_single_line(line,x,y,color,href+one_or_two.ToString());
+            ty = buses_location[volt_level][SCDResolver.line_bus_relation[line].Max()][1] + ty;
+            draw_text(line,x+15,ty);
                 
         }
 
@@ -633,7 +643,8 @@ namespace SCDVisual
                     }
 
                     // 并联两母线，画出母联
-                    draw_component(buses_location[Side][SCDResolver.buses[Side].Max()][0] + 20, buses_location[Side][SCDResolver.buses[Side].Max()][1], href, color);
+                    draw_component(buses_location[Side][SCDResolver.buses[Side].Max()][0] + 40, buses_location[Side][SCDResolver.buses[Side].Max()][1], href, color);
+                    draw_text((Side/10).ToString()+SCDResolver.buses[Side].First().ToString()+SCDResolver.buses[Side].Last().ToString(), buses_location[Side][SCDResolver.buses[Side].Min()][0]+70, buses_location[Side][SCDResolver.buses[Side].Min()][1]+40);
                 }
 
                 // 多组母联
@@ -667,8 +678,8 @@ namespace SCDVisual
                             buses_location[Side][i] = new int[] { x, y, x2 };
                         
                             // 画母联
-                            draw_component(buses_location[Side][item.Key][0]+20, buses_location[Side][item.Key][1] - dy + 10, href, color);
-                            
+                            draw_component(buses_location[Side][item.Key][0]+40, buses_location[Side][item.Key][1] - dy + 10, href, color);
+                            draw_text((Side/10).ToString()+item.Key.ToString()+i.ToString(), buses_location[Side][item.Key][0] + 70, buses_location[Side][item.Key][1] - dy+10);
                             // 调整坐标
                             x = x2 + 50;
                             x2 = x + partLen;
@@ -722,6 +733,7 @@ namespace SCDVisual
                 }
                 // 画分段开关
                 draw_component(640, 280, href, color);
+                draw_text((Side/10).ToString()+SCDResolver.buses[Side].First().ToString()+SCDResolver.buses.Last().ToString(),690,270);
             }
 
             // 多分段情况
@@ -772,6 +784,7 @@ namespace SCDVisual
                         }
                         // 画出分段开关
                         draw_component(buses_location[Side][item[0]][0] + part_len - 25, y - 25, href, color);
+                        draw_text((Side/10).ToString()+item[0].ToString()+item[1].ToString(),buses_location[Side][item[0]][0]+ part_len+5, y - 25);
                         if (n % 2 == 1)
                         {
                             // 调整坐标
@@ -809,6 +822,7 @@ namespace SCDVisual
                         }
                         // 画出分段开关
                         draw_component(buses_location[Side][item[0]][0] + part_len - 25, y - 25, href, color);
+                        draw_text((Side / 10).ToString() + item[0].ToString() + item[1].ToString(), buses_location[Side][item[0]][0]+5 + part_len, y - 25);
                     }
                 }
 
@@ -848,12 +862,12 @@ namespace SCDVisual
                                 { "dy", "0" } ,
                                 { "stroke", "black" } ,
                                 { "stroke-width", "0.5" } ,
-                                { "x", (x1-20).ToString() } ,
-                                { "y", (y1+5).ToString()}
+                                { "x", x1.ToString() } ,
+                                { "y", (y1+15).ToString()}
                             };
             // 添加文字节点大svg节点后面
             XmlElement text = NewElement("text", text_attrs);
-            text.InnerText = SCDResolver.c_index[id];
+            text.InnerText = prefix+" "+SCDResolver.c_index[id];
             svg.AppendChild(text);
         }
 

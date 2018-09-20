@@ -11,7 +11,7 @@ namespace SCDVisual
     class SCDResolver
     {
         // xml文件名称
-        const string xml_file_path = "MLB.scd";
+        const string xml_file_path = "ANB.scd";
         // IED的name，desc信息
         static private List<string[]> IEDsInfo = new List<string[]>();
         // IED节点信息
@@ -525,6 +525,8 @@ namespace SCDVisual
                         return;
 
                     var index = c_index.Contains(desc) ? Array.IndexOf(c_index, desc) + (bus_no % 10 - 1) * 2 : Array.IndexOf(d_index, desc) + (bus_no % 10 - 1) * 2;
+                    if (index < 0)
+                        return;
                     lock (line_bus_dic)
                     {
                         line_bus_dic[line].Add(index);
