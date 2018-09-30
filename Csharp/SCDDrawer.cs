@@ -2,8 +2,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using System.Xml;
 using System.Text;
 
@@ -32,6 +30,9 @@ namespace SCDVisual
 
         // 记录断路器间隔所接线路数
         private static IDictionary<string, int> line_num_of_breaker = new Dictionary<string, int>();
+
+        // 记录每段母线上线路数量
+        private static IDictionary<string, int> dic_busline_num;
 
         // 保存电压等级
         private static int High_volt;
@@ -561,8 +562,8 @@ namespace SCDVisual
             // debug
             x = buses_location[volt_level][i][0];
             y = buses_location[volt_level][i][1];
-
-            x = x + (bus_line_num[volt_level][i] + 1) * 40;
+            
+            x = x + 50 + (bus_line_num[volt_level][i]-1)*120;
             y = y + dy;
             draw_single_line(line,x,y,color,href+one_or_two.ToString());
             ty = buses_location[volt_level][SCDResolver.line_bus_relation[line].Max()][1] + ty;
@@ -1091,6 +1092,27 @@ namespace SCDVisual
         {
             if (SCDResolver.buses[High_volt] == null && SCDResolver.buses[Mid_volt] == null)
                 throw new Exception("解析到SCD配置文件，不符合“六统一”规范的格式");
+        }
+
+        /// <summary>
+        /// 获取每条母线上所连线路数量，["2201":2,"2202":2,"1101":3,"1102":2,...]
+        /// </summary>
+        private static void get_bus_line_num()
+        {
+            var m = new Dictionary<string, int>();
+
+            foreach(var item in SCDResolver.line_bus_relation)
+            {
+                foreach(int i in item.Value)
+                {
+                    var m_key = item.Key.Substring(0, 3) + i.ToString();
+                    if (!m.ContainsKey(m_key))
+                        m[m_key] = 1;
+                    else
+                        m[m_key] = m[m_key]++;
+                }
+            }
+            dic_busline_num = m;
         }
     }
 }
