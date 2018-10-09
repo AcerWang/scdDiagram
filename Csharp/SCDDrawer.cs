@@ -32,7 +32,7 @@ namespace SCDVisual
         private static IDictionary<string, int> line_num_of_breaker = new Dictionary<string, int>();
 
         // 记录每段母线上线路数量
-        private static IDictionary<string, int> dic_busline_num;
+        private static IDictionary<string, int> dic_busline_num = null;
 
         // 保存电压等级
         private static int High_volt;
@@ -96,7 +96,7 @@ namespace SCDVisual
             foreach (int trans_no in trans.Keys)
             {
                 // 确定主变位置坐标
-                x = 400 + 400 * (trans_no-1);
+                x = 300 + 300 * (trans_no-1);
 
                 // 画主变
                 draw_component(x,y,"#Trans");
@@ -563,12 +563,83 @@ namespace SCDVisual
             x = buses_location[volt_level][i][0];
             y = buses_location[volt_level][i][1];
             
-            x = x + 50 + (bus_line_num[volt_level][i]-1)*120;
+            x = x + 75 + (bus_line_num[volt_level][i]-1)*125;
             y = y + dy;
+            // 画出线路
             draw_single_line(line,x,y,color,href+one_or_two.ToString());
             ty = buses_location[volt_level][SCDResolver.line_bus_relation[line].Max()][1] + ty;
             draw_text(line,x+15,ty);
-                
+
+            // 标注出线路IED
+            draw_ieds(line, x, y);
+        }
+
+        private static void draw_ieds(string line, int x, int y)
+        {
+            int dy = 0;
+            foreach (var item in SCDResolver.line_ieds["L" + line])
+            {
+                int i = 0;
+                switch (item.Key)
+                {
+                    case "合并单元":
+                        dy = int.Parse(line.Substring(0, 2)) * 10 == High_volt ? -160 : 160;
+                        draw_text(item.Key,x+20,y+dy);
+                        foreach (string ied_name in item.Value)
+                        {
+                            draw_image(x+20+i*30, y+dy, ied_name);
+                            i++;
+                        }
+                        break;
+                    case "合智一体":
+                        dy = int.Parse(line.Substring(0, 2)) * 10 == High_volt ? -80 : 80;
+                        draw_text(item.Key, x-50, y + dy);
+                        foreach (string ied_name in item.Value)
+                        {
+                            draw_image(x-30-i*30, y+dy, ied_name);
+                            i++;
+                        }
+                        break;
+                    case "智能终端":
+                        dy = int.Parse(line.Substring(0, 2)) * 10 == High_volt ? -80 : 80;
+                        draw_text(item.Key, x-50, y + dy);
+                        foreach (string ied_name in item.Value)
+                        {
+                            draw_image(x-30-i*30, y + dy, ied_name);
+                            i++;
+                        }
+                        break;
+                    case "保护测控":
+                        dy = int.Parse(line.Substring(0,2))*10 == High_volt ? -240 : 240;
+                        draw_text(item.Key, x+20, y + dy);
+                        foreach (string ied_name in item.Value)
+                        {
+                            draw_image(x+20+i*30, y + dy, ied_name);
+                            i++;
+                        }
+                        break;
+                    case "保护":
+                        dy = int.Parse(line.Substring(0, 2)) * 10 == High_volt ? -240 : 240;
+                        draw_text(item.Key, x+40, y + dy);
+                        foreach (string ied_name in item.Value)
+                        {
+                            draw_image(x + 20 + i * 30, y + dy, ied_name);
+                            i++;
+                        }
+                        break;
+                    case "测控":
+                        dy = int.Parse(line.Substring(0, 2)) * 10 == High_volt ? -280 : 280;
+                        draw_text(item.Key, x+20, y + dy);
+                        foreach (string ied_name in item.Value)
+                        {
+                            draw_image(x + 20 + i * 30, y + dy, ied_name);
+                            i++;
+                        }
+                        break;
+                    default:
+                        break;
+                }
+            }
         }
 
         /// <summary>
@@ -591,12 +662,13 @@ namespace SCDVisual
                     SCDResolver.buses[Side] = new SortedSet<int>(new int[] { 1 });
                 }
                 // 每一段母线的长度
-                int seg_length = line_seg_length(SCDResolver.buses[Side].Count);
-
+                // int seg_length = line_seg_length(SCDResolver.buses[Side].Count);
 
                 // 每一段，单独画，水平排列
                 foreach (int i in SCDResolver.buses[Side])
                 {
+                    string k = Side.ToString() + i.ToString();
+                    int seg_length = get_bus_line_num()[k] * 150 ;
                     // 画一条母线
                     draw_single_bus(Side.ToString() + "kV", i, x, y, x + seg_length, y,color);
                     // 存储坐标
@@ -632,12 +704,14 @@ namespace SCDVisual
                     // 画两条并联母线
                     foreach (int i in SCDResolver.buses[Side])
                     {
+                        string k = Side.ToString() + i.ToString();
+                        int seg_length = get_bus_line_num()[k] * 150;
                         // 画一条母线
-                        draw_single_bus(Side.ToString() + "kV", i, x, y, x + 1200, y, color);
+                        draw_single_bus(Side.ToString() + "kV", i, x, y, x + seg_length, y, color);
                         // 存储母线位置
                         if (!buses_location.ContainsKey(Side))
                             buses_location[Side] = new Dictionary<int, int[]>();
-                        buses_location[Side][i] = new int[] { x, y,x+1200 };
+                        buses_location[Side][i] = new int[] { x, y,x+seg_length };
 
                         // 调整坐标
                         y = y + dy;
@@ -654,11 +728,14 @@ namespace SCDVisual
                     var relation = SCDResolver.buses_relation[Side]["母联"].Values;
                     var relation_res = union_seg(relation);
                     // 初始坐标，及每段母线的长度
-                    int seg_length = line_seg_length(relation_res.Count), x = 50, y = (Side == High_volt) ? 300 : 650;
+                    int x = 50, y = (Side == High_volt) ? 300 : 650;
+                    // int seg_length = line_seg_length(relation_res.Count);
                     int dy = (Side == High_volt) ? -40 : 40;
                     // 画母线
                     foreach (var item in relation_res)
                     {
+                        string k = Side.ToString() + item.Key.ToString();
+                        int seg_length = get_bus_line_num()[k] * 150;
                         // 画内侧的base母线
                         draw_single_bus(Side.ToString() + "kV", item.Key, x, y, x + seg_length, y, color);
                         // 保存母线位置信息
@@ -752,22 +829,25 @@ namespace SCDVisual
                 ISet<int> set = new SortedSet<int>(longList);
                 var total_seg_num = set.Count;
 
-                int part_len = 1200 ;
-
                 // 并联型分段
                 // -----------^^^----------^^^-----------^^^---------
                 // -----------^^^----------^^^-----------^^^---------
                 if (total_seg_num - seg_num == 2)
                 {
-                    part_len = line_seg_length(seg_num);
+                    // part_len = line_seg_length(seg_num);
                     // 记录画的组数
                     int n = 0;
                     // 画分段母线，并联型画法
                     foreach (var item in SCDResolver.buses_relation[Side]["分段"].Values)
                     {
+                        int seg_length = 0;
                         n++;
                         foreach (var i in item)
-                        {   // 初次画该电压等级的母线
+                        {
+                            string k = Side.ToString() + i.ToString();
+                            seg_length = get_bus_line_num()[k] * 150;
+
+                            // 初次画该电压等级的母线
                             if (!buses_location.ContainsKey(Side))
                                 buses_location[Side] = new Dictionary<int, int[]>();
 
@@ -775,17 +855,17 @@ namespace SCDVisual
                             if (!buses_location[Side].ContainsKey(i))
                             {
                                 // 画母线
-                                draw_single_bus(Side + "kV", i, x, y, x + part_len, y, color);
+                                draw_single_bus(Side + "kV", i, x, y, x + seg_length, y, color);
 
                                 // 记录位置信息
-                                buses_location[Side][i] = new int[] { x, y, x + part_len };
+                                buses_location[Side][i] = new int[] { x, y, x + seg_length };
                             }
                             // 已经划过该母线了，转到下一条
                             x = buses_location[Side][i][2] + 50;
                         }
                         // 画出分段开关
-                        draw_component(buses_location[Side][item[0]][0] + part_len - 25, y - 25, href, color);
-                        draw_text((Side/10).ToString()+item[0].ToString()+item[1].ToString(),buses_location[Side][item[0]][0]+ part_len+5, y - 25);
+                        draw_component(buses_location[Side][item[0]][2] - 25, y - 25, href, color);
+                        draw_text((Side/10).ToString()+item[0].ToString()+item[1].ToString(),buses_location[Side][item[0]][2] + 5, y - 25);
                         if (n % 2 == 1)
                         {
                             // 调整坐标
@@ -800,12 +880,16 @@ namespace SCDVisual
                 // ----------^^^-----------^^^-----------^^^---------
                 if (total_seg_num - seg_num == 1)
                 {
-                    part_len = line_seg_length(total_seg_num);
+                    // part_len = line_seg_length(total_seg_num);
                     // 画分段母线，串联型画法
                     foreach (var item in SCDResolver.buses_relation[Side]["分段"].Values)
                     {
+                        int seg_length = 0;
                         foreach (var i in item)
-                        {   // 初次画该电压等级的母线
+                        {
+                            string k = Side.ToString() + i.ToString();
+                            seg_length = get_bus_line_num()[k] * 150;
+                            // 初次画该电压等级的母线
                             if (!buses_location.ContainsKey(Side))
                                 buses_location[Side] = new Dictionary<int, int[]>();
 
@@ -813,17 +897,17 @@ namespace SCDVisual
                             if (!buses_location[Side].ContainsKey(i))
                             {
                                 // 画母线
-                                draw_single_bus(Side + "kV", i, x, y, x + part_len, y,color);
+                                draw_single_bus(Side + "kV", i, x, y, x + seg_length, y,color);
 
                                 // 记录位置信息
-                                buses_location[Side][i] = new int[] { x, y, x+part_len};
+                                buses_location[Side][i] = new int[] { x, y, x+seg_length};
                             }
                             // 调整坐标
                             x = buses_location[Side][i][2] + 50;
                         }
                         // 画出分段开关
-                        draw_component(buses_location[Side][item[0]][0] + part_len - 25, y - 25, href, color);
-                        draw_text((Side / 10).ToString() + item[0].ToString() + item[1].ToString(), buses_location[Side][item[0]][0]+5 + part_len, y - 25);
+                        draw_component(buses_location[Side][item[0]][2] - 25, y - 25, href, color);
+                        draw_text((Side / 10).ToString() + item[0].ToString() + item[1].ToString(), buses_location[Side][item[0]][2]+5, y - 25);
                     }
                 }
 
@@ -939,6 +1023,25 @@ namespace SCDVisual
             XmlElement ele = NewElement("use",attrs);
             svg.AppendChild(ele);
 
+        }
+
+        /// <summary>
+        /// 创建IED的图像节点
+        /// </summary>
+        /// <param name="x">放置的横坐标</param>
+        /// <param name="y">放置的纵坐标</param>
+        /// <param name="alt">显示的提示信息</param>
+        /// <param name="href">引用的源文件</param>
+        private static void draw_image(int x,int y, string alt, string href = "ied1.svg")
+        {
+            Dictionary<string, string> attrs = new Dictionary<string, string> {
+                { "x", x.ToString() } ,
+                { "y", y.ToString() } ,
+                { "href", href },
+                { "alt", alt }
+            };
+            XmlElement ele = NewElement("image",attrs);
+            svg.AppendChild(ele);
         }
 
         /// <summary>
@@ -1097,22 +1200,25 @@ namespace SCDVisual
         /// <summary>
         /// 获取每条母线上所连线路数量，["2201":2,"2202":2,"1101":3,"1102":2,...]
         /// </summary>
-        private static void get_bus_line_num()
+        private static IDictionary<string,int> get_bus_line_num()
         {
+            if (dic_busline_num != null)
+                return dic_busline_num;
             var m = new Dictionary<string, int>();
 
             foreach(var item in SCDResolver.line_bus_relation)
             {
                 foreach(int i in item.Value)
                 {
-                    var m_key = item.Key.Substring(0, 3) + i.ToString();
+                    var m_key = item.Key.Substring(0, 2)+ "0" + i.ToString();
                     if (!m.ContainsKey(m_key))
                         m[m_key] = 1;
                     else
-                        m[m_key] = m[m_key]++;
+                        m[m_key] += 1;
                 }
             }
             dic_busline_num = m;
+            return dic_busline_num;
         }
     }
 }

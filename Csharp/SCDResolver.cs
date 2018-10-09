@@ -5,6 +5,7 @@ using System.Xml;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Collections;
 
 namespace SCDVisual
 {
@@ -24,7 +25,7 @@ namespace SCDVisual
         // 公用正则表达式
         static Regex bus_seg_no = new Regex(@"([1-9]|[IVX]+)");
         static Regex ied_no = new Regex(@"(\d{4})");
-
+        
         // 高压侧、中压侧电压
         public static int High_Volt;
         public static int Mid_Volt;
@@ -59,6 +60,9 @@ namespace SCDVisual
         // 主变-母线连接关系信息
         public static IDictionary<string, ISet<int>> trans_bus_relation;
 
+        // 线路IED分类信息
+        public static IDictionary<string, Dictionary<string, List<string>>> line_ieds;
+
         /// <summary>
         /// 启动初始化，获取各参数信息
         /// </summary>
@@ -78,13 +82,16 @@ namespace SCDVisual
                 GetIEDsInfo(xmlDoc);
                 // 获取线路
                 lines = GetLines();
+                // 分类IED
+                ClassifyIEDs();
             }
             catch (Exception e)
             {
                 Console.WriteLine(e.StackTrace);
                 
             }
-    
+
+
             // 获取主变
             transformers = Task<Object>.Run(() => GetTransformers()).Result;
 
@@ -704,6 +711,36 @@ namespace SCDVisual
             });
             
             return break_seg;
+        }
+
+        /// <summary>
+        /// 线路IEDs按类型分类，返回分类数据{"L2201":{"合智一体":["ML2201"],"保护":["PL2201A","PL2201B"]},...}
+        /// </summary>
+        private static void ClassifyIEDs()
+        {
+            Regex ied_type = new Regex(@"(合并单元)|(合智一体)|(智能终端)|(保护测控)|(保护)|(测控)");
+            Regex line_reg = new Regex(@"(L\d{4})");
+            line_ieds = new Dictionary<string, Dictionary<string,List<string>>>();
+            string[] low_level = new string[] { "10","35","66"};
+
+            // 分类IED
+            foreach(var item in IEDsInfo )
+             {
+                 string l_no = line_reg.Match(item[0]).Value;
+                 if (l_no != "")
+                 {
+                     if (low_level.Contains(l_no.Substring(1, 2)))
+                         continue;
+                     string type = ied_type.Match(item[1]).Value;
+                     if (!line_ieds.ContainsKey(l_no))
+                         line_ieds[l_no] = new Dictionary<string, List<string>>();
+
+                     if (!line_ieds[l_no].ContainsKey(type))
+                         line_ieds[l_no][type] = new List<string>();
+
+                     line_ieds[l_no][type].Add(item[0]);
+                 }
+             }
         }
     }
 }

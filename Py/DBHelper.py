@@ -8,7 +8,7 @@ class DataBase(object):
 	def open_connection(self):
 		cursor,cursor = None, None
 		try:
-			conn = sqlite3.connect('../db/test.db')
+			conn = sqlite3.connect('test.db')
 			cursor = conn.cursor()
 		except Exception as e:
 			print(e)
