@@ -5,14 +5,13 @@ using System.Xml;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using System.Collections;
 
 namespace SCDVisual
 {
     class SCDResolver
     {
         // xml文件名称
-        const string xml_file_path = "STHB.scd";
+        const string xml_file_path = "ZTB.scd";
         // IED的name，desc信息
         static private List<string[]> IEDsInfo = new List<string[]>();
         // IED节点信息
@@ -177,7 +176,7 @@ namespace SCDVisual
                     lock (m_trans)
                     {
                         if (!m_trans.ContainsKey(key))
-                            m_trans[key] = key.ToString() + "#";
+                            m_trans[key] = "T" + key.ToString();
                     }
                 });
             }
@@ -719,28 +718,88 @@ namespace SCDVisual
         private static void ClassifyIEDs()
         {
             Regex ied_type = new Regex(@"(合并单元)|(合智一体)|(智能终端)|(保护测控)|(保护)|(测控)");
-            Regex line_reg = new Regex(@"(L\d{4})");
+            Regex line_reg = new Regex(@"^\wX?L(\d{4})\w?");         // 线路
+            Regex trans_reg = new Regex(@"^\w(ZB)|T\w*\d+\w?");         // 主变
+            Regex union_or_seg_reg = new Regex(@"(母联)|(分段)");    // 母联
+            Regex no_reg = new Regex(@"(\d+)");                      // 数字
+
             line_ieds = new Dictionary<string, Dictionary<string,List<string>>>();
             string[] low_level = new string[] { "10","35","66"};
 
             // 分类IED
             foreach(var item in IEDsInfo )
-             {
-                 string l_no = line_reg.Match(item[0]).Value;
-                 if (l_no != "")
+            {
+                 // 线路 IED 的处理
+                 string ied = line_reg.Match(item[0]).Groups[1].Value;
+                 if (ied != "")
                  {
-                     if (low_level.Contains(l_no.Substring(1, 2)))
+                    ied = "L" + ied;
+                     if (low_level.Contains(ied.Substring(1, 2)))
                          continue;
                      string type = ied_type.Match(item[1]).Value;
-                     if (!line_ieds.ContainsKey(l_no))
-                         line_ieds[l_no] = new Dictionary<string, List<string>>();
+                     if (!line_ieds.ContainsKey(ied))
+                         line_ieds[ied] = new Dictionary<string, List<string>>();
 
-                     if (!line_ieds[l_no].ContainsKey(type))
-                         line_ieds[l_no][type] = new List<string>();
+                     if (!line_ieds[ied].ContainsKey(type))
+                         line_ieds[ied][type] = new List<string>();
 
-                     line_ieds[l_no][type].Add(item[0]);
+                     line_ieds[ied][type].Add(item[0]);
+                    continue;
                  }
-             }
+                // 主变 IED 的处理
+                Boolean is_trans = trans_reg.IsMatch(item[0]);
+                if (is_trans)
+                {
+                    ied = no_reg.Match(item[0]).Groups[1].Value;
+
+                    // 对于某些SCD文件，兼容性处理，变成4位长度的字符串数字：0001,3502，...
+                    if (4-ied.Length>0)
+                        ied = ied.Substring(0,ied.Length-1)+ new string('0',4-ied.Length) + ied.Last().ToString();
+
+                    string level = ied.Substring(0, 2);
+                    if (low_level.Contains(level))
+                        continue;
+
+                    if (int.Parse(level) * 10 == High_Volt)
+                        ied = "T" + ied.Last().ToString() + "H";
+                        
+                    else if(int.Parse(level) * 10 == Mid_Volt)
+                        ied = "T" + ied.Last().ToString() + "M";
+                    else
+                        ied = "T" + ied.Last().ToString() + "B";
+
+                    string type = ied_type.Match(item[1]).Value;
+                    if (type == "保护" || type == "保护测控")
+                        ied = ied.Substring(0,2) + "B";
+
+                    if (!line_ieds.ContainsKey(ied))
+                        line_ieds[ied] = new Dictionary<string, List<string>>();
+
+                    if (!line_ieds[ied].ContainsKey(type))
+                        line_ieds[ied][type] = new List<string>();
+
+                    line_ieds[ied][type].Add(item[0]);
+                    continue;
+                }
+                // 母联|分段 IED 的处理
+                ied = union_or_seg_reg.Match(item[1]).Value;
+                if (ied != "")
+                {
+                    string no = ied_no.Match(item[0]).Value;
+                    ied = ied == "母联" ? "U" + no : "S" + no;
+                    if (low_level.Contains(ied.Substring(1, 2)))
+                        continue;
+                    string type = ied_type.Match(item[1]).Value;
+                    if (!line_ieds.ContainsKey(ied))
+                        line_ieds[ied] = new Dictionary<string, List<string>>();
+
+                    if (!line_ieds[ied].ContainsKey(type))
+                        line_ieds[ied][type] = new List<string>();
+
+                    line_ieds[ied][type].Add(item[0]);
+                    continue;
+                }
+            }
         }
     }
 }
