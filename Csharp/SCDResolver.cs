@@ -11,7 +11,7 @@ namespace SCDVisual
     class SCDResolver
     {
         // xml文件名称
-        const string xml_file_path = "ZTB.scd";
+        const string xml_file_path = "BZB.scd";
         // IED的name，desc信息
         static private List<string[]> IEDsInfo = new List<string[]>();
         // IED节点信息
