@@ -125,11 +125,12 @@ namespace SCDVisual
                 int x = 50, y = 350;
                 if (SCDResolver.buses[High_volt] == null)
                     SCDResolver.buses[High_volt] = new SortedSet<int>(new int[] { 1, 2 });
+                int length = SCDResolver.breakers.Count * 250 + 100;
                 // 画3/2接线母线
                 foreach (int i in SCDResolver.buses[High_volt])
                 {
                     // 画一条母线
-                    draw_single_bus(High_volt.ToString() + "kV", i, x, y, x + 1200, y,"red");
+                    draw_single_bus(High_volt.ToString() + "kV", i, x, y, x + length, y,"red");
                     // 存储位置信息
                     buses_location[High_volt] = new Dictionary<int, int[]>();
                     buses_location[High_volt][i] = new int[] { x, y,x+1200 };
@@ -183,12 +184,12 @@ namespace SCDVisual
                 for (int i = 0; i < breaker.Count(); i++)
                 {
                     // 画断路器
-                    draw_breaker(100 + 150 * i, 200);
-                    draw_text(SCDResolver.breakers.ToArray()[i]+SCDResolver.breaker_no.ToArray()[2], 125 + 150 * i, 230);
-                    draw_text(SCDResolver.breakers.ToArray()[i] + SCDResolver.breaker_no.ToArray()[1], 125 + 150 * i, 280);
-                    draw_text(SCDResolver.breakers.ToArray()[i] + SCDResolver.breaker_no.ToArray()[0], 125 + 150 * i, 330);
+                    draw_breaker(150 + 250 * i, 200);
+                    draw_text(SCDResolver.breakers.ToArray()[i]+SCDResolver.breaker_no.ToArray()[2], 175 + 250 * i, 230);
+                    draw_text(SCDResolver.breakers.ToArray()[i] + SCDResolver.breaker_no.ToArray()[1], 175 + 250 * i, 280);
+                    draw_text(SCDResolver.breakers.ToArray()[i] + SCDResolver.breaker_no.ToArray()[0], 175 + 250 * i, 330);
                     // 记录断路器位置信息
-                    breaker_location[breaker[i]] = new int[] { 100 + 150 * i, 200 };
+                    breaker_location[breaker[i]] = new int[] { 150 + 250 * i, 200 };
                 }
                 
                 // 画线路
@@ -484,7 +485,8 @@ namespace SCDVisual
             // 线路所联断路器的x坐标
             int x = breaker_location[breaker][0];
             string href = "#Line-3/2-L";
-            
+            int offset_r_l = 0;
+
             // 所处两个断路器编号的最后一位数字
             int[] b_no = new int[] {int.Parse(line_breaker[0].Substring(3,1)),int.Parse(line_breaker[1].Substring(3,1))};
             int[] breaker_no = SCDResolver.breaker_no.ToArray();
@@ -500,8 +502,9 @@ namespace SCDVisual
             if(line_num_of_breaker.ContainsKey(breaker))
             {
                 x = x + 10;
-                href = "#Line-3/2-R"; // 左侧
+                href = "#Line-3/2-R"; // 右侧
                 line_num_of_breaker[breaker] = 2;
+                offset_r_l = 85;
             }
             else   // 左侧
             {
@@ -510,7 +513,22 @@ namespace SCDVisual
             }
             // 画线路
             draw_3_2_line(line,x,50+dy,href);
-            
+
+            // 标注线路IEDs
+            int m = 1;
+            foreach (var it in SCDResolver.line_ieds["L" + line])
+            {
+                draw_text(it.Key, x - 35+offset_r_l, 53+m*25, "black", "6");
+                int j = 1;
+                foreach (string name in it.Value)
+                {
+                    draw_image(x - 80 + j * 30+offset_r_l, 50+m*25, name, "20", "20");
+                    draw_text(name, x - 85 + j * 30+offset_r_l, 50 + m * 25 +22, "black", "6");
+                    j++;
+                }
+                m++;
+            }
+
         }
 
         /// <summary>
@@ -652,7 +670,7 @@ namespace SCDVisual
             
             x = x + 75 + (bus_line_num[volt_level][i]-1)*125;
             y = y + dy;
-            // 画出线路
+            // 画出线路  debug
             draw_single_line(line,x,y,color,href+one_or_two.ToString());
             ty = buses_location[volt_level][SCDResolver.line_bus_relation[line].Max()][1] + ty;
             draw_text(line,x-25,ty);
@@ -677,51 +695,51 @@ namespace SCDVisual
                 {
                     case "合并单元":
                         dy = int.Parse(line.Substring(0, 2)) * 10 == High_volt ? 50 : 160;
-                        draw_text(item.Key,x+20,y+dy,"black","8");
+                        draw_text(item.Key,x+35,y+dy+2,"black","8");
                         foreach (string ied_name in item.Value)
                         {
-                            draw_image(x+20+i*40, y+dy, ied_name);
-                            draw_text(ied_name, x + 15 + i * 45, y + dy + 35, "black","8");
+                            draw_image(x+20+i*30, y+dy, ied_name);
+                            draw_text(ied_name, x + 15 + i * 38, y + dy + 35, "black","8");
                             i++;
                         }
                         break;
                     case "合智一体":
                         dy = int.Parse(line.Substring(0, 2)) * 10 == High_volt ? 130 : 80;
-                        draw_text(item.Key, x+35, y + dy,"black","8");
+                        draw_text(item.Key, x+35, y + dy+2,"black","8");
                         foreach (string ied_name in item.Value)
                         {
-                            draw_image(x+20+i*40, y+dy, ied_name);
-                            draw_text(ied_name, x + 18 + i * 45, y + dy + 35, "black", "8");
+                            draw_image(x+20+i*30, y+dy+5, ied_name);
+                            draw_text(ied_name, x + 18 + i * 38, y + dy + 30, "black", "8");
                             i++;
                         }
                         break;
                     case "智能终端":
                         dy = int.Parse(line.Substring(0, 2)) * 10 == High_volt ? 120 : 80;
-                        draw_text(item.Key, x+35, y + dy, "black", "8");
+                        draw_text(item.Key, x+35, y + dy+2, "black", "8");
                         foreach (string ied_name in item.Value)
                         {
-                            draw_image(x+20+i*40, y + dy, ied_name);
-                            draw_text(ied_name, x + 18 + i * 45, y + dy + 35, "black", "8");
+                            draw_image(x+20+i*30, y + dy, ied_name);
+                            draw_text(ied_name, x + 18 + i * 35, y + dy + 30, "black", "8");
                             i++;
                         }
                         break;
                     case "保护测控":
                         dy = int.Parse(line.Substring(0,2))*10 == High_volt ? -20 : 240;
-                        draw_text(item.Key, x+20, y + dy, "black", "8");
+                        draw_text(item.Key, x+20, y + dy+5, "black", "8");
                         foreach (string ied_name in item.Value)
                         {
-                            draw_image(x+20+i*40, y + dy, ied_name);
-                            draw_text(ied_name, x + 15 + i * 45, y + dy + 35, "black", "8");
+                            draw_image(x+20+i*30, y + dy, ied_name);
+                            draw_text(ied_name, x + 15 + i * 38, y + dy + 30, "black", "8");
                             i++;
                         }
                         break;
                     case "保护":
                         dy = int.Parse(line.Substring(0, 2)) * 10 == High_volt ? -10 : 220;
-                        draw_text(item.Key, x+40, y + dy, "black", "8");
+                        draw_text(item.Key, x+40, y + dy+5, "black", "8");
                         foreach (string ied_name in item.Value)
                         {
-                            draw_image(x + 20 + i * 40, y + dy, ied_name);
-                            draw_text(ied_name, x + 15 + i * 45, y + dy + 35, "black", "8");
+                            draw_image(x + 20 + i * 30, y + dy, ied_name);
+                            draw_text(ied_name, x + 15 + i * 38, y + dy + 30, "black", "8");
                             i++;
                         }
                         break;
@@ -730,8 +748,8 @@ namespace SCDVisual
                         draw_text(item.Key, x+20, y + dy, "black", "8");
                         foreach (string ied_name in item.Value)
                         {
-                            draw_image(x + 20 + i * 40, y + dy, ied_name);
-                            draw_text(ied_name, x + 50 + i * 45, y + dy+20, "black", "8");
+                            draw_image(x + 20 + i * 30, y + dy, ied_name);
+                            draw_text(ied_name, x + 45 + i * 38, y + dy+20, "black", "8");
                             i++;
                         }
                         break;
@@ -821,9 +839,9 @@ namespace SCDVisual
                     int u_x = buses_location[Side][SCDResolver.buses[Side].Min()][0] + 70, u_y = buses_location[Side][SCDResolver.buses[Side].Min()][1]+40;
                     // 并联两母线，画出母联
                     draw_component(buses_location[Side][SCDResolver.buses[Side].Max()][0] + 40, buses_location[Side][SCDResolver.buses[Side].Max()][1], href, color);
-                    draw_text((Side/10).ToString()+SCDResolver.buses[Side].First().ToString()+SCDResolver.buses[Side].Last().ToString(), u_x, u_y+ty);
-
-                    // 画母联IEDs，
+                    // 母联编号
+                    draw_text((Side / 100).ToString() + SCDResolver.buses[Side].First().ToString() + SCDResolver.buses[Side].Last().ToString(), u_x+5, u_y+ty);
+                    // 画母联IEDs
                     var ieds = SCDResolver.line_ieds.Where(ied => ied.Key.StartsWith("U" + (Side / 10).ToString())).Select(ied=>ied).First();
                     int j = (Side == High_volt) ? 0 :1;
                     u_y = u_y + (j - 1) * 15;
@@ -877,7 +895,8 @@ namespace SCDVisual
                             int u_x = buses_location[Side][item.Key][0] + 70, u_y = buses_location[Side][item.Key] [1] - dy+10;
                             // 画母联
                             draw_component(buses_location[Side][item.Key][0]+40, buses_location[Side][item.Key][1] - dy + 10, href, color);
-                            draw_text((Side/10).ToString()+item.Key.ToString()+i.ToString(),u_x, u_y+ty);
+                            // 母联编号
+                            draw_text((Side / 100).ToString() + item.Key.ToString() + i.ToString(), u_x+5, u_y+ty);
                             // 标注母联IEDs
                             string uni_no = SCDResolver.buses_relation[Side]["母联"].Where(it => it.Value[0] == item.Key && it.Value[1] == i).Select(it => it.Key).First();
                             int j = (Side == High_volt) ? 0:1;
@@ -1001,12 +1020,12 @@ namespace SCDVisual
                         // 画出分段开关
                         int s_x = buses_location[Side][item[0]][2], s_y = y;
                         draw_component(s_x - 25, s_y - 25, href, color);
-                        draw_text((Side/10).ToString()+item[0].ToString()+item[1].ToString(),s_x + 5, y);
-
+                        // 分段编号
+                        draw_text((Side / 100).ToString() + item[0].ToString() + item[1].ToString(), s_x + 10, y);
                         // 标注分段IEDs
+                        string ied_no = SCDResolver.buses_relation[Side]["分段"].Where(ied => ied.Value[0] == item[0] && ied.Value[1] == item[1]).Select(ied => ied.Key).First();
                         int directions = (n % 2 == 1) ? -1 : 1;  // IED放置方向
                         int dy_ied = (1-n % 2) * 20;
-                        string ied_no = SCDResolver.buses_relation[Side]["分段"].Where(ied => ied.Value[0] == item[0] && ied.Value[1] == item[1]).Select(ied => ied.Key).First();
                         int m = 1;
                         foreach (var it in SCDResolver.line_ieds["S"+ied_no])
                         {
@@ -1015,7 +1034,7 @@ namespace SCDVisual
                             foreach(string name in it.Value)
                             {
                                 draw_image(s_x-30 + j * 30, s_y + m * 20*directions-30+dy_ied, name, "20", "20");
-                                draw_text(name, s_x-30 + j * 35, s_y + m*20*directions-10+dy_ied, "black", "6");
+                                draw_text(name, s_x-40 + j * 35, s_y + m*20*directions-10+dy_ied, "black", "6");
                                 j++;
                             }
                             m++;
@@ -1062,11 +1081,11 @@ namespace SCDVisual
                         // 画出分段开关
                         int s_x = buses_location[Side][item[0]][2], s_y = y;
                         draw_component(s_x - 25, y - 25, href, color);
-                        draw_text((Side / 10).ToString() + item[0].ToString() + item[1].ToString(), s_x+5, y);
-
+                        // 分段编号
+                        draw_text((Side / 100).ToString() + item[0].ToString() + item[1].ToString() , s_x +10, y);
                         // 标注分段IEDs
-                        int directions = -1;  // IED放置方向
                         string ied_no = SCDResolver.buses_relation[Side]["分段"].Where(ied => ied.Value[0] == item[0] && ied.Value[1] == item[1]).Select(ied => ied.Key).First();
+                        int directions = -1;  // IED放置方向
                         int m = 1;
                         foreach (var it in SCDResolver.line_ieds["S" + ied_no])
                         {
@@ -1075,7 +1094,7 @@ namespace SCDVisual
                             foreach (string name in it.Value)
                             {
                                 draw_image(s_x - 30 + j * 30, s_y + m * 20 * directions - 30 , name, "20", "20");
-                                draw_text(name, s_x - 30 + j * 35, s_y + m * 20 * directions - 10 , "black", "6");
+                                draw_text(name, s_x - 40 + j * 35, s_y + m * 20 * directions - 10 , "black", "6");
                                 j++;
                             }
                             m++;
@@ -1319,13 +1338,13 @@ namespace SCDVisual
         /// <param name="y2">终点纵坐标</param>
         private static void draw_path(int x1, int y1, int x2, int y2, string color)
         {
-            //int dy = (y1 + y2) / 2;
+            int dy = y1 < y2 ? (y1 + y2) / 2 + 10 : (y1 + y2) / 2 - 10;
 
             StringBuilder sb = new StringBuilder("M");
             sb.Append(x1.ToString() + " " + y1.ToString()+" ");
-            sb.Append("L" + x1.ToString() + " " + y2.ToString() + " ");
-            // sb.Append("L"+x1.ToString()+" "+dy.ToString()+" ");
-            // sb.Append("L " + x2.ToString() + " " + dy.ToString()+" ");
+            // sb.Append("L" + x1.ToString() + " " + y2.ToString() + " ");
+            sb.Append("L"+x1.ToString()+" "+dy.ToString()+" ");
+            sb.Append("L " + x2.ToString() + " " + dy.ToString()+" ");
             sb.Append("L " + x2.ToString() + " " + y2.ToString());
 
             Dictionary<string, string> attrs = new Dictionary<string, string>() {
