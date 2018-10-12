@@ -11,7 +11,7 @@ namespace SCDVisual
     class SCDResolver
     {
         // xml文件名称
-        const string xml_file_path = "STHB.scd";
+        const string xml_file_path = "MLB.scd";
         // IED的name，desc信息
         static private List<string[]> IEDsInfo = new List<string[]>();
         // IED节点信息
@@ -30,7 +30,7 @@ namespace SCDVisual
         public static int Mid_Volt;
 
         // 3/2断路器尾号
-        public static ISet<int> breaker_no = new SortedSet<int>();
+        public static ISet<int> breaker_no = new SortedSet<int>(); 
 
         // 主变信息
         public static IDictionary<int,string> transformers;
@@ -719,8 +719,9 @@ namespace SCDVisual
         {
             Regex ied_type = new Regex(@"(合并单元)|(合智一体)|(智能终端)|(保护测控)|(保护)|(测控)");
             Regex line_reg = new Regex(@"^\wX?L(\d{4})\w?");         // 线路
-            Regex trans_reg = new Regex(@"^\w(ZB)|T\w*\d+\w?");         // 主变
+            Regex trans_reg = new Regex(@"^\w(ZB)|T\w*\d+\w?");      // 主变
             Regex union_or_seg_reg = new Regex(@"(母联)|(分段)");    // 母联
+            Regex breaker_reg = new Regex(@"^\w[(DL)B]\w*\d+\w?");    // 断路器 PW220B1
             Regex no_reg = new Regex(@"(\d+)");                      // 数字
 
             line_ieds = new Dictionary<string, Dictionary<string,List<string>>>();
@@ -757,13 +758,13 @@ namespace SCDVisual
                         ied = ied.Substring(0,ied.Length-1)+ new string('0',4-ied.Length) + ied.Last().ToString();
 
                     string level = ied.Substring(0, 2);
-                    if (low_level.Contains(level))
+                    if (low_level.Contains(level)||ied.Last()=='0')
                         continue;
 
                     if (int.Parse(level) * 10 == High_Volt)
                         ied = "T" + ied.Last().ToString() + "H";
-                        
-                    else if(int.Parse(level) * 10 == Mid_Volt)
+
+                    else if (int.Parse(level) * 10 == Mid_Volt)
                         ied = "T" + ied.Last().ToString() + "M";
                     else
                         ied = "T" + ied.Last().ToString() + "B";
@@ -787,6 +788,24 @@ namespace SCDVisual
                 {
                     string no = ied_no.Match(item[0]).Value;
                     ied = ied == "母联" ? "U" + no : "S" + no;
+                    if (low_level.Contains(ied.Substring(1, 2)))
+                        continue;
+                    string type = ied_type.Match(item[1]).Value;
+                    if (!line_ieds.ContainsKey(ied))
+                        line_ieds[ied] = new Dictionary<string, List<string>>();
+
+                    if (!line_ieds[ied].ContainsKey(type))
+                        line_ieds[ied][type] = new List<string>();
+
+                    line_ieds[ied][type].Add(item[0]);
+                    continue;
+                }
+                // 断路器的处理
+                Boolean is_breaker = breaker_reg.IsMatch(item[0]);
+                if (is_breaker)
+                {
+                    string no = ied_no.Match(item[0]).Value;
+                    ied = "B" + no;
                     if (low_level.Contains(ied.Substring(1, 2)))
                         continue;
                     string type = ied_type.Match(item[1]).Value;

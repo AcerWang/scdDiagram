@@ -113,7 +113,6 @@ namespace SCDVisual
             }
         }
 
-
         /// <summary>
         /// 通过解析得到的母线信息画出对应母线的母联关系图，保存母线位置信息
         /// </summary>
@@ -185,11 +184,22 @@ namespace SCDVisual
                 {
                     // 画断路器
                     draw_breaker(150 + 250 * i, 200);
-                    draw_text(SCDResolver.breakers.ToArray()[i]+SCDResolver.breaker_no.ToArray()[2], 175 + 250 * i, 230);
-                    draw_text(SCDResolver.breakers.ToArray()[i] + SCDResolver.breaker_no.ToArray()[1], 175 + 250 * i, 280);
-                    draw_text(SCDResolver.breakers.ToArray()[i] + SCDResolver.breaker_no.ToArray()[0], 175 + 250 * i, 330);
+                    draw_text(SCDResolver.breakers.ToArray()[i]+SCDResolver.breaker_no.ToArray()[2], 170 + 250 * i, 230);
+                    draw_text(SCDResolver.breakers.ToArray()[i] + SCDResolver.breaker_no.ToArray()[1], 170 + 250 * i, 280);
+                    draw_text(SCDResolver.breakers.ToArray()[i] + SCDResolver.breaker_no.ToArray()[0], 170 + 250 * i, 330);
                     // 记录断路器位置信息
                     breaker_location[breaker[i]] = new int[] { 150 + 250 * i, 200 };
+
+                    // 断路器对应的IEDs
+                    int k = 0;
+                    foreach(int j in SCDResolver.breaker_no)
+                    {
+                        k++;
+                        string b_no = "B" + SCDResolver.breakers.ToArray()[i] + j.ToString();
+                        if (!SCDResolver.line_ieds.ContainsKey(b_no))
+                            continue;
+                        draw_breakers_ieds("B"+SCDResolver.breakers.ToArray()[i]+j.ToString() , 155 + 250 * i, 350-k*50);
+                    }
                 }
                 
                 // 画线路
@@ -335,9 +345,82 @@ namespace SCDVisual
         }
 
         /// <summary>
-        ///  画单侧主变到母线的连接
+        /// 画断路器的IEDs
         /// </summary>
-        /// <param name="volt">电压等级</param>
+        /// <param name="ied_no">断路器编号</param>
+        /// <param name="x">断路器位置横坐标</param>
+        /// <param name="y">断路器位置纵坐标</param>
+        private static void draw_breakers_ieds(string ied_no, int x, int y)
+        {
+            foreach (var item in SCDResolver.line_ieds[ied_no])
+            {
+                int i = 0;
+                switch (item.Key)
+                {
+                    case "合并单元":
+                        draw_text(item.Key, x + 65, y +10, "black", "6");
+                        foreach (string ied_name in item.Value)
+                        {
+                            draw_image(x + 50 + i * 35, y+5, ied_name,"20","20");
+                            draw_text(ied_name, x + 45 + i * 35, y + 25, "black", "6");
+                            i++;
+                        }
+                        break;
+                    case "合智一体":
+                        draw_text(item.Key, x + 65, y + 10, "black", "6");
+                        foreach (string ied_name in item.Value)
+                        {
+                            draw_image(x + 50 + i * 35, y + 5, ied_name, "20", "20");
+                            draw_text(ied_name, x + 45 + i * 35, y + 25, "black", "6");
+                            i++;
+                        }
+                        break;
+                    case "智能终端":
+                        draw_text(item.Key, x + 65, y + 30, "black", "6");
+                        foreach (string ied_name in item.Value)
+                        {
+                            draw_image(x + 50 + i * 35, y + 25, ied_name, "20", "20");
+                            draw_text(ied_name, x + 45 + i * 40, y + 45, "black", "6");
+                            i++;
+                        }
+                        break;
+                    case "保护测控":
+                        draw_text(item.Key, x - 55, y + 20, "black", "6");
+                        foreach (string ied_name in item.Value)
+                        {
+                            draw_image(x - 40 - i * 30, y + 15, ied_name, "20", "20");
+                            draw_text(ied_name, x - 40 - i * 35, y + 45, "black", "6");
+                            i++;
+                        }
+                        break;
+                    case "保护":
+                        draw_text(item.Key, x - 55, y + 30, "black", "6");
+                        foreach (string ied_name in item.Value)
+                        {
+                            draw_image(x - 40 - i * 30, y + 25, ied_name, "20", "20");
+                            draw_text(ied_name, x - 40 - i * 35, y + 45, "black", "6");
+                            i++;
+                        }
+                        break;
+                    case "测控":
+                        draw_text(item.Key, x - 55, y+15, "black", "6");
+                        foreach (string ied_name in item.Value)
+                        {
+                            draw_image(x - 40 - i * 30, y +5, ied_name, "20", "20");
+                            draw_text(ied_name, x - 40 - i * 30, y + 25, "black", "6");
+                            i++;
+                        }
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+        
+        /// <summary>
+                ///  画单侧主变到母线的连接
+                /// </summary>
+                /// <param name="volt">电压等级</param>
         private static void draw_single_side_connector(int volt)
         {
             string color = volt==High_volt? "red":"blue";
@@ -1369,8 +1452,8 @@ namespace SCDVisual
 
             StringBuilder sb = new StringBuilder("M");
             sb.Append(x1.ToString() + " " + y1.ToString());
-            sb.Append(" L" + (x1+50).ToString() + " " + y1.ToString());
-            sb.Append(" L" + (x1+50).ToString() + " " + dy.ToString());
+            sb.Append(" L" + (x1+110).ToString() + " " + y1.ToString());
+            sb.Append(" L" + (x1+110).ToString() + " " + dy.ToString());
             sb.Append(" L" + x2.ToString() + " " + dy.ToString());
             sb.Append(" L" + x2.ToString() + " " + y2.ToString());
 
