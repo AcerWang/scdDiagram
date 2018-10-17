@@ -41,6 +41,7 @@ if __name__=='__main__':
     
     db.close_connection()
 
-    multi_task('../scd/ANB.scd')
+    multi_task('../scd/BXB.scd')
     end = time.clock()
     print('total time:',end-start,'s')
+	input('...')
