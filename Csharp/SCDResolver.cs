@@ -11,7 +11,7 @@ namespace SCDVisual
     class SCDResolver
     {
         // xml文件名称
-        const string xml_file_path = "MLB.scd";
+        const string xml_file_path = "TLB.scd";
         // IED的name，desc信息
         static private List<string[]> IEDsInfo = new List<string[]>();
         // IED节点信息
@@ -81,6 +81,8 @@ namespace SCDVisual
                 GetIEDsInfo(xmlDoc);
                 // 获取线路
                 lines = GetLines();
+                // 获取母线
+                buses = GetBuses();
                 // 分类IED
                 ClassifyIEDs();
             }
@@ -94,8 +96,6 @@ namespace SCDVisual
             // 获取主变
             transformers = Task<Object>.Run(() => GetTransformers()).Result;
 
-            // 获取母线
-            buses = Task<Object>.Run(() => GetBuses()).Result;
 
             // 获取`母线-母线`关系
             buses_relation = Task<Object>.Run(() => GetBusRelation()).Result;
@@ -198,7 +198,7 @@ namespace SCDVisual
         {
             Regex reg = new Regex(@"(\d{3,})");
 
-            var buses = IEDsInfo.Where(ied => ied[0].StartsWith("CM")).Select(ied => ied).AsParallel();
+            var buses = IEDsInfo.Where(ied => ied[0].StartsWith("CM")|| ied[0].StartsWith("PM")).Select(ied => ied).AsParallel();
             
             // 没有线路信息，直接返回
             // if (buses.Count() == 0)
@@ -252,7 +252,7 @@ namespace SCDVisual
         private static SortedDictionary<int, IDictionary<string, string>> GetLines()
         {
             // 线路匹配正则表达式
-            Regex line_no = new Regex(@"^MX?L(\d{4})");
+            Regex line_no = new Regex(@"^.X?L(\d{4})");
             Regex line_name = new Regex(@"(\d{2,4}\D{2,}\d?\D?线路?)|(\D*线)");
             
             // 线路IEDs
@@ -431,7 +431,7 @@ namespace SCDVisual
         {
             Regex reg = new Regex(@"^M.*L(\d{4})");
 
-            var all_lines = lines.SelectMany(line => line.Value.Keys).Select(name => name).ToArray();
+            var all_lines = lines.SelectMany(line => line.Value.Keys).Select(name => name).AsParallel();
 
             // 获得一个线路合并单元的可迭代对象
             var mu_ieds = IEDList.Where(ele => reg.IsMatch(ele.GetAttribute("name"))).Select(ied => ied).AsParallel();

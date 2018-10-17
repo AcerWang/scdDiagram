@@ -116,7 +116,7 @@ def resolve(scd_file,target,parent=None):
 if __name__ == '__main__':
     import time
     start = time.clock()
-    resolve('./scd/STHB.scd','DOI','LN')
+    resolve('./scd/BXB.scd','IED')
     end = time.clock()
 
     print("程序总运行时间：",end-start,"s")
