@@ -87,7 +87,7 @@ namespace SCDVisual
         ///
         
         // 公共正则表达式
-        static Regex reg_IEDType = new Regex(@"([合智]并?智?能?[\u4e00-\u9fa5]{2})|(保护|测控)(测控)?");
+        static Regex reg_IEDType = new Regex(@"([合智]并?智?能?[\u4e00-\u9fa5]{2})|(保护)|(测控)(测控)?");
         static Regex reg_no = new Regex(@"\d{3,}");
         static Regex bus_seg_no = new Regex(@"([1-9]|[IVX]+|[\u2160-\u2169])");
 
@@ -102,7 +102,11 @@ namespace SCDVisual
         public static Dictionary<string, int> Volts = new Dictionary<string,int>();
         public static IDictionary<int, ISet<string>> Buses;
         public static IDictionary<int, IDictionary<string, string>> Lines;
-
+        public static ISet<string> Trans;
+        public static IDictionary<int, IDictionary<string, IDictionary<string, int[]>>> Buses_Relation;
+        public static IDictionary<string, ISet<string>> Line_Breaker_Relation = new SortedDictionary<string, ISet<string>>();
+        public static ISet<int> Breaker_Suffix = new SortedSet<int>();
+        public static IDictionary<string, Dictionary<string, List<string>>> Device_IEDs;
 
         public static void read(string filepath)
         {
@@ -148,17 +152,16 @@ namespace SCDVisual
         /// </summary>
         /// <param name="ied">一个IED节点元素，e.g：PL2201A 节点</param>
         /// <returns>返回该IED所属的类型的字符串表示，保护、测控、合并单元、智能终端 ...</returns>
-        public static string IEDType(XElement ied)
+        private static string getIEDType(XElement ied)
         {
             string type = IEDTYPES.type_X;
 
             string name = ied.Attribute("name").Value;
             string desc = ied.Attribute("desc").Value;
-
-            var match = reg_IEDType.Match(desc);
-
             IEnumerable<XElement> LDevices = ied.Descendants(ns + "LDevice");
 
+            var match = reg_IEDType.Match(desc);
+            var a = match.Groups[1].Value;
             if (LDevices.Any(ld => ld.Attribute("inst").Value == IEDTYPES.PROT))
                 type = IEDTYPES.type_P;
             else if (LDevices.Any(ld => ld.Attribute("inst").Value == IEDTYPES.MEAS) && LDevices.All(ld => ld.Attribute("inst").Value != IEDTYPES.PROT))
@@ -168,7 +171,7 @@ namespace SCDVisual
             else if (LDevices.Any(ld => ld.Attribute("inst").Value.StartsWith(IEDTYPES.MU)))
                 type = IEDTYPES.type_M;
 
-            return match.Success ? match.Groups[1].Value : type;
+            return match.Success ? match.Value : type;
         }
 
         public static SortedDictionary<int, IDictionary<string, string>> GetLines()
@@ -394,132 +397,165 @@ namespace SCDVisual
             return m_relation;
         }
 
-        public static IDictionary<string, ISet<int>> GetLineToBus()
+        public static IDictionary<string, ISet<int>> GetLinkToBus()
         {
             SortedDictionary<string, ISet<int>> line_bus_dic = new SortedDictionary<string, ISet<int>>();
 
             Regex M_reg, P_reg;
-
+            string part,no;
             IEnumerable<XElement> M_P_ieds;
-            IEnumerable<string> all_lines = Lines.SelectMany(line => line.Value.Keys).Select(name => name).AsParallel();
-
-            foreach(var line in all_lines)
+            IEnumerable<string> all_components = Lines.SelectMany(line => line.Value.Keys).Select(name => "X?L" + name).AsParallel();
+            List<string> all_trans = new List<string>();
+            foreach (var t in Trans)
             {
-                M_reg = new Regex(@"^M" + "X?L" + line);
+                if (Volts["M"] > 100)
+                {
+                    all_trans.Add(@"(T|(ZB))" + Volts["M"].ToString() + t);
+                }
+                all_trans.Add(@"(T|(ZB))" + Volts["H"].ToString() + t);
+            }
+            all_components = all_components.Concat(all_trans);
+            foreach(var item in all_components)
+            {
+                no = reg_no.Match(item).Value;
+                part = item.Contains("L") ? "L"+no: "T"+no;
+                M_reg = new Regex(@"^M" + item);
 
                 // 获得一个线路合并单元|保护装置的可迭代对象
-                M_P_ieds = IEDs.Where(ele => M_reg.IsMatch(ele.Attribute("name").Value)).Select(ied => ied).AsParallel();
+                M_P_ieds = IEDs.Where(ele => M_reg.IsMatch(ele.Attribute("name").Value) && !ele.Attribute("desc").Value.Contains("电压")).
+                                Select(ied => ied).AsParallel();
                 if (M_P_ieds.Count() == 0)
                 {
-                    P_reg = new Regex(@"^[PS]" + "X?L" + line);
-                    M_P_ieds = IEDs.Where(ele => P_reg.IsMatch(ele.Attribute("name").Value)).Select(ied => ied).AsParallel();
+                    P_reg = new Regex(@"^[PS]" + part);
+                    M_P_ieds = IEDs.Where(ele => P_reg.IsMatch(ele.Attribute("name").Value) && !ele.Attribute("desc").Value.Contains("电压")).
+                                    Select(ied => ied).AsParallel();
                     if (M_P_ieds.Count() == 0)
                         continue;
                 }
-                if (int.Parse(line.Substring(0, 2)) * 10 >= 330)
+                if (int.Parse(part.Substring(1, 2)) * 10 >= 330)
                 {
-                    //   GetLineToBreaker(line);
+                    GetLinkToBreaker(item);
                     continue;
                 }
                 // 新线路，生成新的存储结构
-                if (!line_bus_dic.ContainsKey(line) || line_bus_dic[line].Count == 0)
+                if (!line_bus_dic.ContainsKey(part) || line_bus_dic[part].Count == 0)
                 {
                     lock (line_bus_dic)
                     {
-                        if (!line_bus_dic.ContainsKey(line))
-                            line_bus_dic[line] = new SortedSet<int>();
+                        if (!line_bus_dic.ContainsKey(part))
+                            line_bus_dic[part] = new SortedSet<int>();
                     }
                     // 获取该线路P|M装置对应的外部母线引用
-                    FindReference(M_P_ieds.First(), line_bus_dic);
+                    // M_P_ieds = M_P_ieds.Where(ele => !ele.Attribute("desc").Value.Contains("电压"));
+                    FindReference(M_P_ieds.First(), line_bus_dic,item);
                 }
             }
             return line_bus_dic;
         }
 
-        private static void FindReference(XElement node, IDictionary<string, ISet<int>> line_bus_dic)
+        private static void FindReference(XElement node, IDictionary<string, ISet<int>> line_bus_dic,string part)
         {
-            string type = node.Attribute("name").Value.Substring(0,1);
-            string line = reg_no.Match(node.Attribute("name").Value).Value;
+            string node_name = node.Attribute("name").Value;
+            string type = node_name.Substring(0,1);
+            string component = node_name.Contains("L")?"L"+reg_no.Match(node_name).Value:"T"+ reg_no.Match(node_name).Value;
             Regex reg = new Regex(@"(\d[0-9A-Z]{3})");
 
             if (type == "M")
             {
                 // 线路对应的ExtRef节点
-                var mu_ext_refs = node.Descendants(ns+"AccessPoint").Where(ele => ele.Attribute("name").Value.StartsWith("M")).Descendants(ns+"ExtRef");                
-
-                // 该 ExtRef 所引用的外部 LN 节点
-                string ied_name, ldInst, lnClass, lnInst;
-
-                // 遍历所有ExtRef节点，获得线路连接的母线
-                foreach(var element in mu_ext_refs)
+                var mu_ext_refs = node.Descendants(ns+"AccessPoint").
+                        Where(ele => ele.Attribute("name").Value.StartsWith("M")).
+                        Descendants(ns+"ExtRef").
+                        Where(ele=>ele.Attribute("iedName").Value.StartsWith("MM"));
+                if (mu_ext_refs.Count() == 0)
                 {
-                    // ExtRef 的属性信息
-                    try
+                    var P_reg = new Regex(@"^[PS]" + part);
+                    var nodes = IEDs.Where(ele => P_reg.IsMatch(ele.Attribute("name").Value)).Select(ied => ied);
+                    if (nodes.Count() == 0)
                     {
-                        ied_name = element.Attribute("iedName").Value;
-                        ldInst = element.Attribute("ldInst").Value;
-                        lnClass = element.Attribute("lnClass").Value;
-                        lnInst = element.Attribute("lnInst").Value;
-                        if (lnInst == "")
+                        P_reg = new Regex(@"^P(T|(ZB))\d*" + part.Last().ToString());
+                        nodes = IEDs.Where(ele => P_reg.IsMatch(ele.Attribute("name").Value)).Select(ied => ied);
+                    }
+                    if(nodes.Count()==0)
+                        return;
+                    node = nodes.First();
+                    type = node.Attribute("name").Value.Substring(0, 1);
+                } 
+                else
+                {
+                    // 该 ExtRef 所引用的外部 LN 节点
+                    string ied_name, ldInst, lnClass, lnInst;
+
+                    // 遍历所有ExtRef节点，获得线路连接的母线
+                    foreach(var element in mu_ext_refs)
+                    {
+                        // ExtRef 的属性信息
+                        try
+                        {
+                            ied_name = element.Attribute("iedName").Value;
+                            ldInst = element.Attribute("ldInst").Value;
+                            lnClass = element.Attribute("lnClass").Value;
+                            lnInst = element.Attribute("lnInst").Value;
+                            if (lnInst == "")
+                                continue;
+                        }
+                        catch (Exception)
+                        {
                             continue;
-                    }
-                    catch (Exception)
-                    {
-                        continue;
-                    }
-                    // 获取对应的母线编号
-                    int bus_no,index=0;
-                    try
-                    {
-                        bus_no = int.Parse(reg.Match(ied_name).Value);
-                    }
-                    catch(Exception)
-                    {
-                        string name = reg.Match(ied_name).Value;
-                        char[] ch = new char[] {'A','B','C','D','E','F','G','H' };
-                        bus_no = int.Parse(name.Substring(0, 3))*10+ Array.IndexOf(ch,name[3])+1; 
-                    }
-                    if (bus_no % 100 > 10)
-                    {
-                        lock (line_bus_dic[line])
+                        }
+                        // 获取对应的母线编号
+                        int bus_no,index=0;
+                        try
+                        {
+                            bus_no = int.Parse(reg.Match(ied_name).Value);
+                        }
+                        catch(Exception)
+                        {
+                            string name = reg.Match(ied_name).Value;
+                            char[] ch = new char[] {'A','B','C','D','E','F','G','H' };
+                            bus_no = int.Parse(name.Substring(0, 3))*10+ Array.IndexOf(ch,name[3])+1; 
+                        }
+                        if (bus_no % 100 > 10)
                         {
                             index = bus_no % 10;
-                            line_bus_dic[line].Add(index);
+                            line_bus_dic[component].Add(index);
 
                             index = (bus_no % 100 - bus_no % 10) / 10;
-                            line_bus_dic[line].Add(index);
+                            line_bus_dic[component].Add(index);
+                            continue;
                         }
-                        continue;
-                    }
-                    else
-                    {
-                        var target_IED = IEDs.Where(ele => ele.Attribute("name").Value == ied_name).AsParallel().First();
-                        var target_ln = target_IED.Descendants(ns + "LDevice").Where(ele => ele.Attribute("inst").Value==ldInst).First();
-                        target_ln = target_ln.Descendants(ns + "LN").Where(ele => ele.Attribute("lnClass").Value == lnClass && ele.Attribute("inst").Value == lnInst).First();
-
-                        if (target_ln == null)
-                            continue;
-                        // 获取对应 LN 节点的描述信息
-                        string desc = target_ln.Attribute("desc").Value;
-                        desc = bus_seg_no.Match(desc).Value;
-
-                        if (desc == "")
-                            continue;
-
-                        index = c_index.Contains(desc) ? Array.IndexOf(c_index, desc) + (bus_no % 10 - 1) * 2 : Array.IndexOf(roma_index, desc) + (bus_no % 10 - 1) * 2;
-                        if (index < 0)
-                            index = Array.IndexOf(d_index, desc);
-                        lock (line_bus_dic[line])
+                        else
                         {
-                            line_bus_dic[line].Add(index);
+                            var target_IED = IEDs.Where(ele => ele.Attribute("name").Value == ied_name).AsParallel().First();
+                            var target_ln = target_IED.Descendants(ns + "LDevice").Where(ele => ele.Attribute("inst").Value==ldInst).First();
+                            target_ln = target_ln.Descendants(ns + "LN").
+                                            Where(ele => ele.Attribute("lnClass").Value == lnClass && ele.Attribute("inst").Value == lnInst).First();
+
+                            if (target_ln == null)
+                                continue;
+                            // 获取对应 LN 节点的描述信息
+                            string desc = target_ln.Attribute("desc").Value;
+                            desc = bus_seg_no.Match(desc).Value;
+
+                            if (desc == "")
+                                continue;
+
+                            index = c_index.Contains(desc) ? Array.IndexOf(c_index, desc) + (bus_no % 10 - 1) * 2 : Array.IndexOf(roma_index, desc) + (bus_no % 10 - 1) * 2;
+                            if (index < 0)
+                                index = Array.IndexOf(d_index, desc);
+                            line_bus_dic[component].Add(index);
                         }
                     }
                 }
             }
-            else  // type == "P|S"
+            if(type == "P" || type == "S")
             {
                 // 线路对应的ExtRef节点
-                var p_ext_refs = node.Descendants(ns + "AccessPoint").Where(ele => ele.Attribute("name").Value.StartsWith("G")).Descendants(ns + "ExtRef").Where(ele=>ele.Attribute("iedName").Value.StartsWith("PM")).First();
+                var p_ext_refs = node.Descendants(ns + "AccessPoint").
+                                    Where(ele => ele.Attribute("name").Value.StartsWith("G")).
+                                    Descendants(ns + "ExtRef").
+                                    Where(ele=>ele.Attribute("iedName").Value.StartsWith("PM")).First();
+
                 int bus_no = 0, index;
                 string ied_name = p_ext_refs.Attribute("iedName").Value;
                 ied_name = reg.Match(ied_name).Groups[1].Value;
@@ -535,24 +571,188 @@ namespace SCDVisual
                 }
                 if (bus_no % 100 > 10)
                 {
-                    lock (line_bus_dic[line])
-                    {
                         index = bus_no % 10;
-                        line_bus_dic[line].Add(index);
+                        line_bus_dic[component].Add(index);
 
                         index = (bus_no % 100 - bus_no % 10) / 10;
-                        line_bus_dic[line].Add(index);
-                    }
+                        line_bus_dic[component].Add(index);
                     return;
                 }
                 else
                 {
-                    lock (line_bus_dic[line])
+                    if (Buses_Relation[bus_no / 10] != null && Buses_Relation[bus_no / 10].ContainsKey("母联"))
                     {
-                        line_bus_dic[line].Add(2 * bus_no % 10 - 1);
-                        line_bus_dic[line].Add(2 * bus_no % 10);
+                            line_bus_dic[component].Add(2 * bus_no % 10 - 1);
+                            line_bus_dic[component].Add(2 * bus_no % 10);
                     }
+                    else
+                            line_bus_dic[component].Add(bus_no % 10);
+                }
+            }
+        }
 
+        public static void GetLinkToBreaker(string part)
+        {
+            Regex prot_reg = new Regex(@"^P" + part);
+            string no;
+            string component = part.Contains("L") ? "L" + reg_no.Match(part).Value : "T" + reg_no.Match(part).Value;
+            try
+            {
+                // 过滤出线路保护IED
+                var line_prot_ied = IEDs.Where(ied => prot_reg.IsMatch(ied.Attribute("name").Value));
+                if (line_prot_ied.Count()==0)
+                {
+                    prot_reg = new Regex(@"^P(T|(ZB))\d*"+part.Last().ToString());
+                    line_prot_ied = IEDs.Where(ied => prot_reg.IsMatch(ied.Attribute("name").Value));
+                    if (line_prot_ied == null)
+                        return;
+                }
+                // 线路保护IED的引用Ext_Ref
+                var breaker_ext_refs = line_prot_ied.First().Descendants(ns+"AccessPoint").
+                                        Where(ele=>ele.Attribute("name").Value.StartsWith("G")).
+                                        Descendants(ns+"ExtRef").AsParallel();
+
+                // 遍历线路对应的ExtRef节点
+                foreach(var ele in breaker_ext_refs)
+                {
+                    // 引用IED名称，编号
+                    var ied_name = ele.Attribute("iedName").Value;
+                    if (!ied_name.StartsWith("P"))
+                        continue;
+                    no = reg_no.Match(ied_name).Value;
+                    if (!no.StartsWith(component.Substring(1,2))||no[2]=='0')
+                        continue;
+                    // 还没存放过该线路-断路器关系信息
+                    if (!Line_Breaker_Relation.ContainsKey(component))
+                        Line_Breaker_Relation[component] = new SortedSet<string>();
+                    // 添加断路器编号到关系字典中
+                    Line_Breaker_Relation[component].Add(no);
+                }
+            }
+            catch (Exception)
+            {
+                Line_Breaker_Relation = null;
+            }
+        }
+
+        public static ISet<string> GetBreakers()
+        {
+            // 匹配规则
+            string str_volt = (Volts["H"] / 10).ToString();
+            Regex breaker_reg = new Regex(@"^P(B|(DL))" + str_volt + @"[1-9]\d");
+            string break_no;
+
+            // 高压IED信息
+            var breakers = IEDs.Where(ied => breaker_reg.IsMatch(ied.Attribute("name").Value)).Select(ied=>ied.Attribute("name").Value);
+
+            ISet<string> break_seg = new SortedSet<string>();
+            foreach( var info in breakers)
+            {
+                break_no = reg_no.Match(info).Value;
+                break_seg.Add(break_no.Substring(0, 3));
+                Breaker_Suffix.Add(int.Parse(break_no.Substring(3, 1)));
+            }
+            return break_seg;
+        }
+
+        public static void ClassifyIEDs()
+        {
+            Regex line_reg = new Regex(@"^\wX?L(\d{4})\w?");          // 线路
+            Regex trans_reg = new Regex(@"^\w(ZB)|T\w*\d+\w?");       // 主变
+            Regex union_or_seg_reg = new Regex(@"(母联)|(分段)");     // 母联
+            Regex breaker_reg = new Regex(@"^\w((DL)|B)\w*\d+\w?");   // 断路器 PW220B1
+            Regex no_reg = new Regex(@"(\d+)");                       // 数字
+
+            Device_IEDs = new Dictionary<string, Dictionary<string, List<string>>>();
+            string[] low_level = new string[] { "10", "35", "66" };
+            string type;
+            // 分类IED
+            foreach (var item in IEDs)
+            {
+                type = getIEDType(item);  // IED类型
+                // 线路 IED 的处理
+                string ied = line_reg.Match(item.Attribute("name").Value).Groups[1].Value;
+                if (ied != "")
+                {
+                    ied = "L" + ied;
+                    if (low_level.Contains(ied.Substring(1, 2)))
+                        continue;
+                    if (!Device_IEDs.ContainsKey(ied))
+                        Device_IEDs[ied] = new Dictionary<string, List<string>>();
+
+                    if (!Device_IEDs[ied].ContainsKey(type))
+                        Device_IEDs[ied][type] = new List<string>();
+
+                    Device_IEDs[ied][type].Add(item.Attribute("name").Value);
+                    continue;
+                }
+                // 主变 IED 的处理
+                Boolean is_trans = trans_reg.IsMatch(item.Attribute("name").Value);
+                if (is_trans)
+                {
+                    ied = no_reg.Match(item.Attribute("name").Value).Groups[1].Value;
+
+                    // 对于某些SCD文件，兼容性处理，变成4位长度的字符串数字：0001,3502，...
+                    if (4 - ied.Length > 0)
+                        ied = ied.Substring(0, ied.Length - 1) + new string('0', 4 - ied.Length) + ied.Last().ToString();
+
+                    string level = ied.Substring(0, 2);
+                    if (low_level.Contains(level) || ied.Last() == '0')
+                        continue;
+
+                    if (int.Parse(level) * 10 == Volts["H"])
+                        ied = "T" + ied.Last().ToString() + "H";
+
+                    else if (int.Parse(level) * 10 == Volts["M"])
+                        ied = "T" + ied.Last().ToString() + "M";
+                    else
+                        ied = "T" + ied.Last().ToString() + "B";
+
+                    if (type == "保护" || type == "保护测控")
+                        ied = ied.Substring(0, 2) + "B";
+
+                    if (!Device_IEDs.ContainsKey(ied))
+                        Device_IEDs[ied] = new Dictionary<string, List<string>>();
+
+                    if (!Device_IEDs[ied].ContainsKey(type))
+                        Device_IEDs[ied][type] = new List<string>();
+
+                    Device_IEDs[ied][type].Add(item.Attribute("name").Value);
+                    continue;
+                }
+                // 母联|分段 IED 的处理
+                ied = union_or_seg_reg.Match(item.Attribute("desc").Value).Value;
+                if (ied != "")
+                {
+                    string no = reg_no.Match(item.Attribute("name").Value).Value;
+                    ied = ied == "母联" ? "U" + no : "S" + no;
+                    if (low_level.Contains(ied.Substring(1, 2)))
+                        continue;
+                    if (!Device_IEDs.ContainsKey(ied))
+                        Device_IEDs[ied] = new Dictionary<string, List<string>>();
+
+                    if (!Device_IEDs[ied].ContainsKey(type))
+                        Device_IEDs[ied][type] = new List<string>();
+
+                    Device_IEDs[ied][type].Add(item.Attribute("name").Value);
+                    continue;
+                }
+                // 断路器的处理
+                Boolean is_breaker = breaker_reg.IsMatch(item.Attribute("name").Value);
+                if (is_breaker)
+                {
+                    string no = reg_no.Match(item.Attribute("name").Value).Value;
+                    ied = "B" + no;
+                    if (low_level.Contains(ied.Substring(1, 2)))
+                        continue;
+                    if (!Device_IEDs.ContainsKey(ied))
+                        Device_IEDs[ied] = new Dictionary<string, List<string>>();
+
+                    if (!Device_IEDs[ied].ContainsKey(type))
+                        Device_IEDs[ied][type] = new List<string>();
+
+                    Device_IEDs[ied][type].Add(item.Attribute("name").Value);
+                    continue;
                 }
             }
         }
