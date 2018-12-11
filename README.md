@@ -1,4 +1,4 @@
-## A software based on IEC 61850 protocal and SCD file.
+## A software based on IEC 61850 protocal and Substation Configuration Description file.
 **Software running snapshot.**
 
 750kV Substation
