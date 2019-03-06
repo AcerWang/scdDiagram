@@ -1,10 +1,11 @@
+from multiprocessing.pool import Pool
+from multiprocessing import cpu_count
+
 from SCD_element import resolve
 from SCD_struct import resolve_struct
 from Data_process import getRelation
 from DBHelper import DataBase
 
-from multiprocessing.pool import Pool
-from multiprocessing import cpu_count
 
 def multi_task(file):
 
