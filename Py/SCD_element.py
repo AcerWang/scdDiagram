@@ -1,6 +1,7 @@
-#-*- encoding=utf8 -*-
-from DBHelper import DataBase
 import xml.etree.ElementTree as ET
+
+from DBHelper import DataBase
+
 
 def resolve(scd_file,target,parent=None):
     '''
