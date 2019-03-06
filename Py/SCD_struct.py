@@ -1,5 +1,6 @@
 import json
 import xml.etree.ElementTree as ET
+
 from DBHelper import DataBase
 
 def resolve_struct(file_name):
