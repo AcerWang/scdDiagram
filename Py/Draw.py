@@ -1,11 +1,12 @@
-import Data_process
-import DBHelper
-import Algo
-
 import xml.etree.ElementTree as ET
 from xml.etree.ElementTree import Element
 import os
 from collections import defaultdict
+
+import Data_process
+import DBHelper
+import Algo
+
 
 class Drawer(object):
     
