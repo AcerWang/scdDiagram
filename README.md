@@ -7,8 +7,9 @@
 500kV Substation
 ![demo.png](./demo.PNG)
 
-IEDs clusters detection by an algorithm
+## IEDs clusters detection by an algorithm
 ![topologic_graph](./demo2.png)
+(*clusters detection, 21 communities in all*)
 ### 1 ['IM2201', 'CM2201', 'MM2201A', 'MM2201B', 'IM2202', 'PM2201A', 'CM2202', 'PM2201B']
 ### 2 ['IF2201A', 'MF2201A', 'IF2201B', 'MF2201B', 'PF2201A', 'CF2201', 'PF2201B']
 ### 3 ['ML2201A', 'ML2201B', 'IL2201A', 'PL2201A', 'CL2201', 'IL2201B', 'PL2201B']
