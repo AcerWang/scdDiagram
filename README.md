@@ -42,3 +42,6 @@
 
 IED devices topologic graph
 ![topologic_graph](./IEDs.PNG)
+
+Substations connection diagram
+![substation_connection](./substaions.PNG)
