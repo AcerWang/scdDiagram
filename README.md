@@ -7,7 +7,8 @@
 
 500kV Substation
 ![demo.png](./demo.PNG)
-
+220kV Substation
+![220kV.png](./220kV.PNG)
 ## IEDs clusters detection by an algorithm
 ![topologic_graph](./demo2.png)
 (*clusters detection, 27 communities in all*)
