@@ -21,7 +21,7 @@
 ![ieds_info](./analysis_2.PNG)
 
 ### Detected communities in SCD file:
-![ieds_info](./analysis_3.PNG)
+![ieds_info](./analysis_4.PNG)
 
 ### Substations connection diagram:
 ![substation_connection](./substations.PNG)
