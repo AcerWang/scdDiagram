@@ -20,7 +20,7 @@
 
 
 ### IED devices topologic graph:
-![relationship](./relationship.PNG)
+![relationship](./relationship.png)
 
 ### communication graph:
 ![communication](./comm.PNG)
